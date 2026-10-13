@@ -510,6 +510,11 @@
   .yr-table { min-width: 1180px; }
   .yr-table tr.short td { background: #FBEDE5; }
   .dl-row { margin-top: 12px; }
+  .adj-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; background: var(--bg); border-radius: 14px; padding: 14px 16px; }
+  .adj-txt b { display: block; font-size: 14.5px; font-weight: 900; } .adj-txt span { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-mute); line-height: 1.55; margin-top: 2px; }
+  .adj-seg { max-width: 320px; flex-shrink: 0; }
+  .adj-out { margin-top: 8px; font-size: 13.5px; font-weight: 700; color: var(--ink-soft); } .adj-out b { color: var(--accent); font-weight: 900; }
+  @media (max-width: 768px) { .adj-row { flex-direction: column; align-items: stretch; } .adj-seg { max-width: none; } }
   .insight-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
   .insight-tools .cta-link { cursor: pointer; font-family: inherit; }
   @media (max-width: 960px) { .levers { grid-template-columns: 1fr 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
@@ -640,6 +645,11 @@
         </div>
       </div>
     </div>
+    <div class="adj-row">
+      <div class="adj-txt"><b>보수적 보정</b><span>종목으로 정한 수익률에서 은퇴 전·후 모두 이만큼 더 빼고 계산해요. 프리셋 성장률은 과거 실적을 바탕으로 한 값이라 그대로 쓰면 결과가 낙관적으로 나오기 쉬워요.</span></div>
+      <div class="seg sm adj-seg" id="adj-seg"><button type="button" data-v="0">0</button><button type="button" data-v="1">−1%p</button><button type="button" data-v="2" class="on">−2%p</button><button type="button" data-v="3">−3%p</button></div>
+    </div>
+    <div class="adj-out" id="adj-out"></div>
     <p class="note" id="pfDataNote"></p>
     <p class="note">수익률은 계획을 세우기 위한 가정이지 미래를 보장하는 숫자가 아닙니다. 모든 계좌가 같은 수익률로 굴러간다고 보고, 예금·일반계좌는 수익에서 해마다 15.4%를 뗍니다. 운이 나쁜 경우가 궁금하면 맨 위 <b>‘은퇴 직후 폭락’</b>을 켜 보세요(은퇴 첫 2년 연 −20%).</p>
   </div>
@@ -800,6 +810,7 @@
       <div class="method-box">
         <div class="method-t">이렇게 계산해요</div>
         <ul class="method-list">
+          <li><b>수익률</b>은 종목으로 정하면 배당률 + 주가성장률(프리셋에서 2.5%p 낮춰 잡음)에서 <b>보수적 보정(기본 −2%p)</b>을 한 번 더 빼서 써요. 직접 입력한 수익률은 그대로 씁니다.</li>
           <li><b>1년 단위</b>로, 해마다 연초에 필요한 돈을 꺼내고 남은 돈은 연말에 수익이 붙어요. 은퇴 전에는 매년 넣는 돈을 연말에 더합니다.</li>
           <li><b>필요한 돈</b> = 생활비(물가만큼 증가) + 건보료 + 공적연금 소득세 − 공적연금. 연금계좌 세금은 생활비가 그대로 손에 남도록 <b>세금까지 얹어서</b> 꺼내요.</li>
           <li><b>꺼내는 순서</b>는 하나로 정해 두지 않고, 6가지 순서 × 국민연금 받기 전 연금 상한 3가지(1,500·2,000·2,500만원)를 모두 계산해 <b>가장 오래 버티는</b> 조합을 골라요. 끝까지 버티면 마지막에 남은 돈을 다 찾았을 때(퇴직금은 퇴직소득세, 세액공제분·수익은 16.5%를 떼고) 가장 많이 남는 조합입니다.</li>
@@ -1141,7 +1152,7 @@ const PF = (() => {
 /* ===== 화면 ===== */
 const $ = id => document.getElementById(id);
 const STORE_KEY = 'tj-retire-drawdown-v1';
-const ST = { hh: 'couple', spinc: 'yes', meSev: 'irp', spSev: 'lump', real: 'nom' };
+const ST = { hh: 'couple', spinc: 'yes', meSev: 'irp', spSev: 'lump', adj: '2', real: 'nom' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function num(id) {
   const el = $(id); if (!el) return 0;
@@ -1165,7 +1176,7 @@ const FIELDS = ['age', 'retire-age', 'end-age', 'inf', 'spend', 'spend-age', 'sp
   'me-sev', 'me-sev-years', 'me-tc', 'me-ntc', 'me-isa', 'me-cash', 'me-ctc', 'me-cisa', 'me-nps', 'me-nps-age',
   'sp-sev', 'sp-sev-years', 'sp-tc', 'sp-ntc', 'sp-isa', 'sp-cash', 'sp-ctc', 'sp-cisa', 'sp-nps', 'sp-nps-age', 'house'];
 const CHECKS = ['nh-on', 'crash', 'spend2-on', 'multi', 'dep'];
-const SEGS = { hh: 'hh-seg', spinc: 'spinc-seg', meSev: 'me-sevmode', spSev: 'sp-sevmode' };
+const SEGS = { hh: 'hh-seg', spinc: 'spinc-seg', meSev: 'me-sevmode', spSev: 'sp-sevmode', adj: 'adj-seg' };
 const DEFAULTS = {};
 FIELDS.forEach(id => { DEFAULTS[id] = $(id).value; });
 CHECKS.forEach(id => { DEFAULTS[id] = $(id).checked; });
@@ -1178,7 +1189,12 @@ function readParams() {
   const endAge = clamp(Math.round(num('end-age')) || 95, Math.max(retireAge + 1, 60), 110);
   const couple = ST.hh === 'couple';
   const spInc = ST.spinc === 'yes';
-  const rPre = PF.rate('Pre', num('rr-pre')) / 100, rPost = PF.rate('Post', num('rr-post')) / 100;
+  const adj = (+ST.adj || 0);
+  const rateOf = (ph, id) => { const raw = PF.rate(ph, num(id)); const pf = PF.getState(ph).mode === 'pf'; return { raw, pf, used: pf ? raw - adj : raw }; };
+  const RP = rateOf('Pre', 'rr-pre'), RQ = rateOf('Post', 'rr-post');
+  const rPre = RP.used / 100, rPost = RQ.used / 100;
+  const show = (nm, x) => x.pf ? `${nm} ${x.raw.toFixed(1)}%${adj ? ` → <b>${x.used.toFixed(1)}%</b>` : ''}` : `${nm} <b>${x.used.toFixed(1)}%</b> (직접 입력, 보정 안 함)`;
+  const ao = $('adj-out'); if (ao) ao.innerHTML = `계산에 쓰는 연 수익률(세전): ${show('은퇴 전', RP)} · ${show('은퇴 후', RQ)}`;
   const person = (pre, a, inc, sevMode) => ({
     age: a, retireAge, income: inc,
     sev: inc ? Math.max(0, num(pre + '-sev')) : 0, sevYears: Math.max(1, num(pre + '-sev-years')), sevMode,
@@ -1473,7 +1489,7 @@ $('copy-btn').addEventListener('click', () => {
   const lines = [
     `[노후 자금 고갈 시뮬레이터 결과 · ${new Date().toISOString().slice(0, 10)}]`,
     `· 본인 ${p.persons[0].age}세, ${p.persons[0].retireAge}세 은퇴${p.persons[1] ? `, 배우자 ${p.persons[1].age}세` : ''} · 월 생활비 ${fmtMan(p.spend)}(오늘 돈 가치)`,
-    `· 수익률 은퇴 전 ${(p.rPre * 100).toFixed(1)}% / 은퇴 후 ${(p.rPost * 100).toFixed(1)}% · 물가 ${(p.inf * 100).toFixed(1)}%${p.crash ? ' · 은퇴 직후 폭락 가정' : ''}`,
+    `· 수익률 은퇴 전 ${(p.rPre * 100).toFixed(1)}% / 은퇴 후 ${(p.rPost * 100).toFixed(1)}%${+ST.adj ? `(보수적 보정 −${ST.adj}%p 반영)` : ''} · 물가 ${(p.inf * 100).toFixed(1)}%${p.crash ? ' · 은퇴 직후 폭락 가정' : ''}`,
     `· 결과: ${res.depleteT == null ? `${p.endAge}세까지 버팀` : `${res.deplAge}세에 금융자산 바닥`}`,
     `· 은퇴할 때 금융자산 ${fmtMan(res.retireAssets)}`,
     last.max != null ? `· ${p.endAge}세까지 버티는 최대 생활비 월 ${fmtMan(last.max)}(오늘 돈 가치)` : '',
