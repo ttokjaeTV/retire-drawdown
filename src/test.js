@@ -70,5 +70,25 @@ eq('부부 1년차 각자 1,500만원 이하', Math.max(r.rows[0].w[0].P3in, r.r
 const big = base({ inf: 0.025, rPost: 0.04, nhOn: true, house: 5e8, spend: 3.5e6, me: { age: 52, retireAge: 60, sev: 2e8, sevYears: 25, sevMode: 'irp', tc: 5e7, ntc: 2e7, isa: 5e7, cash: 3e7, cTc: 9e6, nps: 1.5e6, npsAge: 65 } });
 const best = E.simulate(big); const one = E.simulateOnce(big, E.ORDERS[5], 15e6);
 eq('최적 순서 ≥ 임의 순서', (best.depleteT ?? 999) >= (one.depleteT ?? 999) ? 1 : 0, 1, 0);
+// 15) 은퇴 전 일반계좌 세금은 taxDivPre로 따로, 은퇴 후 세금 합계(sum.tax)에 안 들어감 → 카드 내역 합 = 카드 금액
+r = E.simulateOnce(base({ age: 53, rPre: 0.07, rPost: 0.06, me: { age: 53, cash: 2e7, tc: 3e8 } }), E.ORDERS[0], 15e6);
+eq('은퇴 전 일반계좌 세금 = 2,000만 7년 복리 15.4%', r.sum.taxDivPre, (() => { let T = 2e7, s = 0; for (let k = 0; k < 7; k++) { const d = T * 0.07 * 0.154; s += d; T += T * 0.07 - d; } return s; })(), 1);
+eq('카드 내역 합 = 카드 금액', r.sum.taxRetire + r.sum.taxPension + r.sum.taxOther + r.sum.taxPub + r.sum.taxDiv, r.sum.tax, 1);
+// 16) 세법 기준금액 물가연동: 물가 0%면 켜도 같고, 켜면 공적연금 소득세 = 오늘 돈 가치로 계산 × 물가
+const ix = base({ inf: 0.03, me: { age: 55, retireAge: 55, cash: 5e8, nps: 1e6, npsAge: 65 } });
+const offR = E.simulateOnce(ix, E.ORDERS[0], 15e6), onR = E.simulateOnce({ ...ix, taxIndex: true }, E.ORDERS[0], 15e6);
+const z = base({ me: { age: 55, retireAge: 55, cash: 5e8, nps: 1e6, npsAge: 65 } });
+eq('물가 0%면 연동 켜도 같은 세금', E.simulateOnce({ ...z, taxIndex: true }, E.ORDERS[0], 15e6).sum.tax, E.simulateOnce(z, E.ORDERS[0], 15e6).sum.tax, 1);
+eq('연동 켜면 65세 공적연금 소득세 = 오늘 돈 가치 세금 × 1.03^10', onR.rows[10].pubTax, E.compTax(12e6, 0, 0) * Math.pow(1.03, 10), 1);
+eq('연동 끄면 명목 공적연금에 지금 공제를 그대로', offR.rows[10].pubTax, E.compTax(12e6 * Math.pow(1.03, 10), 0, 0), 1);
+// 17) 배당률을 알면 건보료용 이자·배당 = 배당 + 판 금액 × 차익 비율 (미실현 주가상승분은 빠짐)
+{ const p0 = base({ rPost: 0.08, divPost: 0.03, endAge: 61, spend: 0, spendAge: 61, spend2: 1e6, me: { cash: 1e8 } });
+  const o = E.simulateOnce(p0, E.ORDERS[0], 15e6);
+  eq('안 판 해: 이자·배당 = 배당 3% (300만)', o.rows[0].fin[0], 3e6, 1);
+  eq('1년 뒤 일반계좌 = 1억 + 800만×(1−15.4%)', o.rows[0].bal[0].T, 1e8 + 8e6 * 0.846, 1);
+  const T1 = 1e8 + 8e6 * 0.846, Tb1 = 1e8 + 3e6 * 0.846, sold = 12e6 * (1 - Tb1 / T1);
+  eq('판 해: 이자·배당 = 남은 돈 배당 + 판 1,200만의 차익', o.rows[1].fin[0], (T1 - 12e6) * 0.03 + sold, 1);
+  const q = E.simulateOnce({ ...p0, divPost: null }, E.ORDERS[0], 15e6);
+  eq('배당률 모르면(직접 입력) 수익 전체 8% = 800만', q.rows[0].fin[0], 8e6, 1); }
 console.log('예시 결과: 고갈', best.deplAge, '순서', best.order.join('>'), 'cap', best.capNoPub / 1e4, '최대 월', Math.round(E.maxSpend(big) / 1e4));
 console.log(fail ? `\n${fail} FAIL` : '\nALL PASS');

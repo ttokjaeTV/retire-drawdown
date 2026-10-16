@@ -568,6 +568,7 @@
   <div class="toolbar">
     <label class="tgl"><input type="checkbox" id="nh-on" checked><span>건보료 차감</span></label>
     <label class="tgl"><input type="checkbox" id="crash"><span>은퇴 직후 폭락</span></label>
+    <label class="tgl" title="실제 세법은 물가에 맞춰 자동으로 오르지 않아요. 켜면 연금소득공제·과표구간·인적공제·1,500만원 기준이 물가만큼 오른다고 보고 계산해요."><input type="checkbox" id="tax-index"><span>세법 기준 물가연동</span></label>
     <button type="button" class="tool-btn" id="share-btn">설정 링크 복사</button>
     <button type="button" class="tool-btn" id="reset-btn">처음 값으로</button>
     <a href="#result" class="tool-btn ghost">결과 보기 ↓</a>
@@ -651,7 +652,7 @@
     </div>
     <div class="adj-out" id="adj-out"></div>
     <p class="note" id="pfDataNote"></p>
-    <p class="note">수익률은 계획을 세우기 위한 가정이지 미래를 보장하는 숫자가 아닙니다. 모든 계좌가 같은 수익률로 굴러간다고 보고, 예금·일반계좌는 수익에서 해마다 15.4%를 뗍니다. 운이 나쁜 경우가 궁금하면 맨 위 <b>‘은퇴 직후 폭락’</b>을 켜 보세요(은퇴 첫 2년 연 −20%).</p>
+    <p class="note">수익률은 계획을 세우기 위한 가정이지 미래를 보장하는 숫자가 아닙니다. 모든 계좌가 같은 수익률로 굴러간다고 보고, 예금·일반계좌는 수익 전체에서 해마다 15.4%를 뗍니다(국내상장 해외 ETF라면 팔 때 낼 세금을 미리 떼는 보수적 가정, 매매차익이 비과세인 국내주식형이면 실제보다 많게 잡혀요). 운이 나쁜 경우가 궁금하면 맨 위 <b>‘은퇴 직후 폭락’</b>을 켜 보세요(은퇴 첫 2년 연 −20%).</p>
   </div>
 
   <!-- STEP 03 은퇴 자금 -->
@@ -818,6 +819,7 @@
           <li><b>세액공제 받은 원금·수익</b>은 1인 연 1,500만원까지 5.5~3.3%(연금 받는 날 기준 나이), 넘으면 그해 전액을 16.5% 분리과세와 종합과세 중 적은 쪽으로, 1,500만원 이하라도 종합과세가 더 싸면 그쪽으로 계산해요. 연금계좌 안에서 불어난 돈은 모두 운용수익(<span class="bn n3">3</span>)으로 봅니다.</li>
           <li><b>퇴직금</b>은 일시금이면 퇴직소득세를 뗀 돈이 예금·일반계좌로, IRP 연금이면 세전 금액이 IRP로 들어가 꺼낼 때 퇴직소득세의 70%(11년차부터 60%, 21년차부터 50%)를 내요.</li>
           <li><b>공적연금 소득세</b>는 연금소득공제·본인공제·70세 이상 경로우대·배우자공제·표준세액공제를 넣어 계산하고, 2002년 이전 납입분도 과세로 봐 실제보다 조금 많게 잡혀요.</li>
+          <li><b>세법 기준금액</b>(연금소득공제 한도 900만원, 과표구간, 인적공제, 사적연금 1,500만원, 금융소득 2,000만원)은 기본으로 <b>지금 금액 그대로</b> 둡니다. 실제 세법은 물가에 자동으로 맞춰 오르지 않기 때문이에요. 다만 몇 년에 한 번씩 올려 왔기 때문에 장기로는 세금이 많게 잡히는 편이라, 맨 위 <b>‘세법 기준 물가연동’</b>을 켜면 이 금액들이 물가만큼 오른다고 보고 다시 계산해요. 실제는 두 결과 사이일 가능성이 높아요.</li>
           <li><b>건보료</b>(2026년 기준)는 지역가입자로 보고 부부 한 세대로 매겨요: 공적연금 50% + 이자·배당(1인 연 1,000만원 넘으면 전액)에 7.19%, 집 공시가격의 과세표준(1주택 43~45%, 2주택 이상 60%)에서 1억원을 뺀 재산 점수 × 211.5원, 장기요양보험료 포함. 오늘 기준으로 계산한 뒤 물가만큼 올려요.</li>
           <li><b>납입 한도</b>: 연금저축·IRP는 연 1,800만원까지 넣고 그중 900만원까지만 세액공제(넘는 돈은 <span class="bn n1">1</span>), ISA는 연 2,000만원까지 넣는다고 봐요.</li>
         </ul>
@@ -826,7 +828,7 @@
         <div class="method-t">계산에 넣지 않은 것</div>
         <ul class="method-list">
           <li><b>ISA 비과세 한도</b> — ISA·국내주식 칸은 불어난 돈까지 세금이 없다고 봐요. 실제 ISA는 수익 200만원(서민형·농어민형 400만원)을 넘으면 9.9% 분리과세가 붙고 총 납입 1억원 한도가 있어요.</li>
-          <li><b>금융소득종합과세</b> — 예금·일반계좌 이자·배당이 1인 연 2,000만원을 넘는 해는 경고만 띄우고 추가 세금은 계산하지 않아요.</li>
+          <li><b>금융소득종합과세</b> — 예금·일반계좌 이자·배당이 1인 연 2,000만원을 넘는 해는 경고만 띄우고 추가 세금은 계산하지 않아요. 건보료와 이 판정에 쓰는 이자·배당은 종목으로 정하면 <b>배당 + 그해 팔아서 생긴 차익</b>만(안 판 주가상승분은 빼고), 직접 입력이면 수익 전체로 봐요.</li>
           <li><b>주택연금·기초연금·대출 상환·집 매각</b>, 전월세 보증금·토지·자동차 외 재산, 세대원 근로소득.</li>
           <li><b>은퇴 첫해 건보료</b> — 실제 지역 보험료는 전년도 소득으로 매기지만, 이 계산은 그해 공적연금과 전년도 이자·배당으로 봐요. 퇴직 직후 임의계속가입도 넣지 않았어요.</li>
           <li><b>수익률 변동</b> — ‘은퇴 직후 폭락’을 켜지 않으면 수익률이 매년 같다고 봐요. 운용보수·환전 비용은 따로 빼지 않으니 비용을 뺀 수익률로 넣어 주세요.</li>
@@ -1175,7 +1177,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const FIELDS = ['age', 'retire-age', 'end-age', 'inf', 'spend', 'spend-age', 'spend2', 'sp-age', 'rr-pre', 'rr-post',
   'me-sev', 'me-sev-years', 'me-tc', 'me-ntc', 'me-isa', 'me-cash', 'me-ctc', 'me-cisa', 'me-nps', 'me-nps-age',
   'sp-sev', 'sp-sev-years', 'sp-tc', 'sp-ntc', 'sp-isa', 'sp-cash', 'sp-ctc', 'sp-cisa', 'sp-nps', 'sp-nps-age', 'house'];
-const CHECKS = ['nh-on', 'crash', 'spend2-on', 'multi', 'dep'];
+const CHECKS = ['nh-on', 'crash', 'tax-index', 'spend2-on', 'multi', 'dep'];
 const SEGS = { hh: 'hh-seg', spinc: 'spinc-seg', meSev: 'me-sevmode', spSev: 'sp-sevmode', adj: 'adj-seg' };
 const DEFAULTS = {};
 FIELDS.forEach(id => { DEFAULTS[id] = $(id).value; });
@@ -1192,6 +1194,8 @@ function readParams() {
   const adj = (+ST.adj || 0);
   const rateOf = (ph, id) => { const raw = PF.rate(ph, num(id)); const pf = PF.getState(ph).mode === 'pf'; return { raw, pf, used: pf ? raw - adj : raw }; };
   const RP = rateOf('Pre', 'rr-pre'), RQ = rateOf('Post', 'rr-post');
+  // 일반계좌 건보료·종합과세 판정용 배당률: 종목으로 정하면 조합 배당률, 직접 입력이면 모름(null → 수익 전체를 이자·배당으로)
+  const divOf = ph => { if (PF.getState(ph).mode !== 'pf') return null; const c = PF.calc(ph); return c.ok ? c.d / 100 : null; };
   const rPre = RP.used / 100, rPost = RQ.used / 100;
   const show = (nm, x) => x.pf ? `${nm} ${x.raw.toFixed(1)}%${adj ? ` → <b>${x.used.toFixed(1)}%</b>` : ''}` : `${nm} <b>${x.used.toFixed(1)}%</b> (직접 입력, 보정 안 함)`;
   const ao = $('adj-out'); if (ao) ao.innerHTML = `계산에 쓰는 연 수익률(세전): ${show('은퇴 전', RP)} · ${show('은퇴 후', RQ)}`;
@@ -1207,7 +1211,8 @@ function readParams() {
   const s2on = $('spend2-on').checked;
   return {
     year0, inf: clamp(num('inf'), 0, 10) / 100, endAge, rPre: clamp(rPre, -0.5, 0.3), rPost: clamp(rPost, -0.5, 0.3),
-    crash: $('crash').checked, nhOn: $('nh-on').checked, house: Math.max(0, num('house')), multi: $('multi').checked, dep: $('dep').checked,
+    crash: $('crash').checked, nhOn: $('nh-on').checked, taxIndex: $('tax-index').checked,
+    divPre: divOf('Pre'), divPost: divOf('Post'), house: Math.max(0, num('house')), multi: $('multi').checked, dep: $('dep').checked,
     spend: Math.max(0, num('spend')), spendAge: Math.round(num('spend-age')) || 75, spend2: s2on ? Math.max(0, num('spend2')) : null,
     persons,
   };
@@ -1273,7 +1278,9 @@ function render() {
   const S = res.sum;
   const taxPriv = S.taxRetire + S.taxPension + S.taxOther;
   $('s-tax').textContent = fmtMan(S.tax);
-  $('s-tax-sub').innerHTML = `연금계좌·퇴직금 ${fmtMan(taxPriv)} · 공적연금 소득세 ${fmtMan(S.taxPub)} · 일반계좌 이자·배당 ${fmtMan(S.taxDiv)}`;
+  $('s-tax-sub').innerHTML = `연금계좌·퇴직금 ${fmtMan(taxPriv)} · 공적연금 소득세 ${fmtMan(S.taxPub)} · 일반계좌 이자·배당 ${fmtMan(S.taxDiv)}`
+    + (S.taxDivPre > 0.5 ? `<br>은퇴 전 일반계좌 세금 ${fmtMan(S.taxDivPre)}은 제외` : '')
+    + (p.inf > 0 ? `<br>${p.taxIndex ? '세법 기준금액 물가연동 가정' : '세법 기준금액 현행 고정 · 맨 위 ‘세법 기준 물가연동’으로 비교'}` : '');
   $('s-nh').textContent = p.nhOn ? fmtMan(S.nh) : '계산 안 함';
   const nhYears = draw.filter(r => r.nh > 0);
   $('s-nh-sub').textContent = p.nhOn ? (nhYears.length ? `첫해 월 ${fmtMan(draw[0].nh / 12)} · 연금저축·IRP 인출분은 0원` : '피부양자 요건을 채워 0원') : '맨 위 ‘건보료 차감’을 켜면 계산해요';
@@ -1423,7 +1430,7 @@ function scheduleMax(p) {
     const r = Math.floor(m / 1e5) * 1e5;   // 10만원 단위 내림
     $('s-max').textContent = r > 0 ? `월 ${fmtMan(r)}` : '0원';
     $('s-max-sub').innerHTML = r > 0
-      ? `오늘 돈 가치 · 이만큼 쓰면 ${p.endAge}세까지 딱 버텨요${p.spend > r ? ` (지금 계획보다 월 ${fmtMan(p.spend - r)} 적게)` : p.spend < r ? ` (지금보다 월 ${fmtMan(r - p.spend)} 더 써도 돼요)` : ''}`
+      ? `오늘 돈 가치 · 10만원 단위로 내려 잡은 값 · 이만큼 쓰면 ${p.endAge}세까지 버텨요${p.spend > r ? ` (지금 계획보다 월 ${fmtMan(p.spend - r)} 적게)` : p.spend < r ? ` (지금보다 월 ${fmtMan(r - p.spend)} 더 써도 돼요)` : ''}`
       : '공적연금만으로는 건보료·세금도 감당이 어려워요';
     if (last) last.max = r;
   }, 250);
@@ -1493,7 +1500,7 @@ $('copy-btn').addEventListener('click', () => {
     `· 결과: ${res.depleteT == null ? `${p.endAge}세까지 버팀` : `${res.deplAge}세에 금융자산 바닥`}`,
     `· 은퇴할 때 금융자산 ${fmtMan(res.retireAssets)}`,
     last.max != null ? `· ${p.endAge}세까지 버티는 최대 생활비 월 ${fmtMan(last.max)}(오늘 돈 가치)` : '',
-    `· 은퇴 후 세금 ${fmtMan(S.tax)} · 건보료 ${p.nhOn ? fmtMan(S.nh) : '계산 안 함'}`,
+    `· 은퇴 후 세금 ${fmtMan(S.tax)}${p.taxIndex ? '(세법 기준 물가연동 가정)' : ''} · 건보료 ${p.nhOn ? fmtMan(S.nh) : '계산 안 함'}`,
     `https://ttokjaetv.github.io/retire-drawdown/`,
   ].filter(Boolean).join('\n');
   const b = $('copy-btn');

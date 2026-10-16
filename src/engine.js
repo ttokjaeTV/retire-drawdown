@@ -92,6 +92,8 @@ const TIER_NAME = { T: '예금·일반계좌', F: 'ISA·국내주식', P1: '세�
 /*
  p = {
    year0, inf, endAge, rPre, rPost, crash, nhOn, house, multi, dep,
+   taxIndex (true면 세법 기준금액 — 연금소득공제·과표구간·인적공제·1,500만원·2,000만원 — 도 물가만큼 오른다고 봄, 기본 false = 현행법 고정),
+   divPre, divPost (일반계좌 수익 중 배당률, 소수. null이면 수익 전체를 이자·배당으로 봄 — 직접 입력 수익률일 때),
    spend (월, 오늘 돈 가치), spendAge, spend2 (중간 변경: 본인 spendAge부터 월 spend2, 없으면 null),
    persons: [{ age, retireAge(본인만, 배우자는 같은 해 은퇴), income(true/false),
      sev(은퇴 때 퇴직금 세전), sevYears, sevMode 'lump'|'irp',
@@ -106,18 +108,41 @@ function simulateOnce(p, order, capNoPub) {
   const endT = Math.max(R, p.endAge - me.age);             // 본인 계획 나이까지
   const couple = P.length > 1;
   P.forEach(x => {
-    x.b1 = x.ntc; x.b2 = 0; x.b3 = x.tc; x.F = x.isa; x.T = x.cash; x.retRate = 0; x.n2 = 0; x.n2Start = null;
+    x.b1 = x.ntc; x.b2 = 0; x.b3 = x.tc; x.F = x.isa; x.T = x.cash; x.Tb = x.cash; x.retRate = 0; x.n2 = 0; x.n2Start = null;
     x.by = p.year0 - x.age; x.npsLegal = npsLegalAge(x.by);
     x.npsStart = Math.min(x.npsLegal + 5, Math.max(x.npsLegal - 5, Math.round(x.npsAge || x.npsLegal)));
     x.npsMon = (x.nps || 0) * npsFactor(x.npsStart - x.npsLegal);
   });
   const rows = [];
-  const sum = { tax: 0, taxRetire: 0, taxPension: 0, taxOther: 0, taxPub: 0, taxDiv: 0, nh: 0, withdrawn: 0, pub: 0, spend: 0, short: 0,
+  // taxDivPre: 은퇴 전 적립 기간에 일반계좌에서 뗀 세금 — '은퇴 후 세금 합계'에는 넣지 않고 따로 둔다
+  const sum = { tax: 0, taxRetire: 0, taxPension: 0, taxOther: 0, taxPub: 0, taxDiv: 0, taxDivPre: 0, nh: 0, withdrawn: 0, pub: 0, spend: 0, short: 0,
     compYears: 0, sepYears: 0, overYears: 0, finWarnYears: 0 };
   let depleteT = null, retireAssets = 0, retireAssetsBy = null;
 
+  /* 일반계좌 한 해 수익 반영.
+     세금: 수익 전체에 해마다 15.4% (국내상장 해외 ETF라면 팔 때 낼 세금을 미리 떼는 보수적 단순화).
+     건보료·금융소득종합과세 판정용 이자·배당(lastFin): 배당 + 그해 팔아서 생긴 차익만.
+     배당률을 모르면(직접 입력 수익률) 수익 전체를 이자·배당으로 본다(예금처럼). */
+  function growT(x, r, div, sold) {
+    const tg = x.T * r, dt = Math.max(0, tg) * TAX.DIV;
+    let fin;
+    if (div == null) { fin = Math.max(0, tg); x.Tb = x.T + tg - dt; }
+    else {
+      const d = Math.max(0, x.T * Math.min(Math.max(0, div), Math.max(0, r)));
+      x.Tb += d * (1 - TAX.DIV);                      // 받은 배당(세후)은 다시 산 원금
+      fin = d + (sold || 0);
+    }
+    x.T += tg - dt;
+    x.Tb = Math.min(x.Tb, x.T);
+    x.lastFin = fin;
+    return dt;
+  }
+
   for (let t = 0; t <= endT; t++) {
     const yr = p.year0 + t, ix = Math.pow(1 + p.inf, t);
+    const kx = p.taxIndex ? ix : 1;                     // 세법 기준금액 물가연동이면 오늘 돈 가치로 세금 계산
+    const ct = (pub, priv, ded) => compTax(pub / kx, priv / kx, ded) * kx;
+    const SEP = TAX.SEP_LIMIT * kx;
     const ages = P.map(x => x.age + t);
     const row = { t, yr, ages, phase: t < R ? 'save' : 'draw' };
 
@@ -127,7 +152,7 @@ function simulateOnce(p, order, capNoPub) {
         const g = (x.b1 + x.b2 + x.b3) * r;
         x.b3 += g;                                      // 연금계좌 운용수익은 모두 ③
         x.F *= 1 + r;
-        const tg = x.T * r; const dt = Math.max(0, tg) * TAX.DIV; x.T += tg - dt; sum.taxDiv += dt;
+        sum.taxDivPre += growT(x, r, p.divPre, 0);
         const c = Math.min(Math.max(0, x.cTc || 0), 18e6);
         const ded = x.income === false ? 0 : Math.min(c, 9e6);
         x.b3 += ded; x.b1 += c - ded;
@@ -145,7 +170,7 @@ function simulateOnce(p, order, capNoPub) {
         if (x.income === false || !(x.sev > 0)) return;
         const rt = retirementTax(x.sev, x.sevYears || 1);
         if (x.sevMode === 'irp') { x.b2 += x.sev; x.retRate = rt / x.sev; x.n2Start = x.age + t; }
-        else { x.T += x.sev - rt * TAX.LOCAL; sum.taxRetire += rt * TAX.LOCAL; sum.tax += rt * TAX.LOCAL; row.sevTax = (row.sevTax || 0) + rt * TAX.LOCAL; }
+        else { x.T += x.sev - rt * TAX.LOCAL; x.Tb += x.sev - rt * TAX.LOCAL; sum.taxRetire += rt * TAX.LOCAL; sum.tax += rt * TAX.LOCAL; row.sevTax = (row.sevTax || 0) + rt * TAX.LOCAL; }
       });
       retireAssets = P.reduce((a, x) => a + x.T + x.F + x.b1 + x.b2 + x.b3, 0);
       retireAssetsBy = P.map(x => ({ T: x.T, F: x.F, b1: x.b1, b2: x.b2, b3: x.b3 }));
@@ -158,8 +183,9 @@ function simulateOnce(p, order, capNoPub) {
     const spendY = mon * 12 * ix;
     const pub = P.map((x, i) => (ages[i] >= x.npsStart ? x.npsMon * 12 * ix : 0));
     // 공적연금 소득세 (공적연금만 있을 때) — 2002년 이후 납입분만 과세지만 전액 과세로 단순화
-    const extra = P.map((x, i) => (ages[i] >= 70 ? TAX.ELDER : 0) + (couple && (pub[1 - i] - pensionDeduction(pub[1 - i])) <= 1e6 ? TAX.BASIC : 0));
-    const pubTax = P.map((x, i) => compTax(pub[i], 0, extra[i]));
+    // 공제액(extra)은 오늘 돈 가치. 세법 기준금액 물가연동이 꺼져 있으면 kx = 1이라 그대로 명목 고정
+    const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= 70 ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
+    const pubTax = P.map((x, i) => ct(pub[i], 0, extra[i]));
     // 건보료: 오늘 돈 가치로 계산한 뒤 물가만큼 키움. 이자·배당은 지난해 일반계좌 수익
     let nh = 0;
     if (p.nhOn) {
@@ -183,7 +209,8 @@ function simulateOnce(p, order, capNoPub) {
     });
     const W = P.map(() => ({ T: 0, F: 0, P1: 0, P2: 0, P3: 0, P2x: 0, P3x: 0, P3in: 0 }));
     const assumed = P.map(() => 0);   // 인출하면서 미리 떼어 둔 세금
-    const capOf = i => (pub[i] > 0 ? TAX.SEP_LIMIT : capNoPub);
+    const capOf = i => (pub[i] > 0 ? SEP : capNoPub * kx);
+    const sold = P.map(() => 0);      // 일반계좌에서 팔아 실현한 차익 (건보료·종합과세 판정용)
 
     function draw(netNeed) {
       let N = netNeed;
@@ -198,13 +225,13 @@ function simulateOnce(p, order, capNoPub) {
           else if (a < 55) continue;
           else if (tier === 'P2') { avail = Math.max(0, Math.min(x.b2, lim[i].l2 - w.P2)); tau = x.retRate * retireFactor(x.n2 + 1) * TAX.LOCAL; }
           else if (tier === 'P2x') { avail = x.b2; tau = x.retRate * TAX.LOCAL; }
-          else if (tier === 'P3a') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in, capOf(i) - w.P3in)); tau = pub[i] > 0 || capOf(i) <= TAX.SEP_LIMIT ? pensionRate(a) * TAX.LOCAL : 0.03; }
+          else if (tier === 'P3a') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in, capOf(i) - w.P3in)); tau = pub[i] > 0 || capOf(i) <= SEP ? pensionRate(a) * TAX.LOCAL : 0.03; }
           else if (tier === 'P3b') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in)); tau = TAX.SEP_RATE * TAX.LOCAL; }
           else if (tier === 'P3x') { avail = x.b3; tau = TAX.OTHER_RATE * TAX.LOCAL; }
           if (avail <= 0.5) continue;
           const g = Math.min(avail, N / (1 - tau));
           N -= g * (1 - tau); assumed[i] += g * tau;
-          if (tier === 'T') { x.T -= g; w.T += g; }
+          if (tier === 'T') { const gs = x.T > 0 ? Math.max(0, 1 - x.Tb / x.T) : 0; sold[i] += g * gs; x.Tb -= g * (1 - gs); x.T -= g; w.T += g; }
           else if (tier === 'F') { x.F -= g; w.F += g; }
           else if (tier === 'P1') { x.b1 -= g; w.P1 += g; }
           else if (tier === 'P2') { x.b2 -= g; w.P2 += g; }
@@ -221,9 +248,9 @@ function simulateOnce(p, order, capNoPub) {
         const tRet = w.P2 * x.retRate * retireFactor(x.n2 + 1) * TAX.LOCAL + w.P2x * x.retRate * TAX.LOCAL;
         const p3 = w.P3in; let tPen = 0, how = '';
         if (p3 > 0.5) {
-          const comp = compTax(pub[i], p3, extra[i]) - pubTax[i];
-          const alt = p3 <= TAX.SEP_LIMIT ? p3 * pensionRate(a) * TAX.LOCAL : p3 * TAX.SEP_RATE * TAX.LOCAL;
-          if (comp < alt) { tPen = comp; how = 'comp'; } else { tPen = alt; how = p3 <= TAX.SEP_LIMIT ? 'low' : 'sep'; }
+          const comp = ct(pub[i], p3, extra[i]) - pubTax[i];
+          const alt = p3 <= SEP ? p3 * pensionRate(a) * TAX.LOCAL : p3 * TAX.SEP_RATE * TAX.LOCAL;
+          if (comp < alt) { tPen = comp; how = 'comp'; } else { tPen = alt; how = p3 <= SEP ? 'low' : 'sep'; }
         }
         const tOth = w.P3x * TAX.OTHER_RATE * TAX.LOCAL;
         return { tRet, tPen, tOth, how, all: tRet + tPen + tOth };
@@ -239,22 +266,24 @@ function simulateOnce(p, order, capNoPub) {
     P.forEach((x, i) => { if (W[i].P2 + W[i].P2x > 0.5) x.n2++; });
 
     // 남는 돈(공적연금이 생활비보다 많거나 세금을 덜 낸 해)은 일반계좌로
-    if (surplus > 0) P[0].T += surplus;
+    if (surplus > 0) { P[0].T += surplus; P[0].Tb += surplus; }
     if (short > 1e4 && depleteT == null) depleteT = t;
 
     // 수익 반영
     P.forEach(x => {
       if (r >= 0) x.b3 += (x.b1 + x.b2 + x.b3) * r; else { x.b1 *= 1 + r; x.b2 *= 1 + r; x.b3 *= 1 + r; }
       x.F *= 1 + r;
-      const tg = x.T * r; const dt = Math.max(0, tg) * TAX.DIV; x.T += tg - dt; sum.taxDiv += dt; row.taxDiv = (row.taxDiv || 0) + dt;
-      x.lastFin = Math.max(0, tg);
-      if (x.lastFin > 20e6) sum.finWarnYears++;
+    });
+    P.forEach((x, i) => {
+      const dt = growT(x, r, p.divPost, sold[i]); sum.taxDiv += dt; row.taxDiv = (row.taxDiv || 0) + dt;
+      if (x.lastFin > 20e6 * kx) sum.finWarnYears++;
     });
 
     const wsum = W.reduce((a, w) => a + w.T + w.F + w.P1 + w.P2 + w.P3 + w.P2x + w.P3x, 0);
     Object.assign(row, {
       spend: spendY, nh, pub: pub.reduce((a, v) => a + v, 0), pubTax: pubTax.reduce((a, v) => a + v, 0), need,
       w: W, wsum, tax: tx, taxW: taxAll, short, surplus, r,
+      fin: P.map(x => x.lastFin),   // 그해 건보료·종합과세 판정용 이자·배당 (다음 해 건보료에 반영)
       bal: P.map(x => ({ T: x.T, F: x.F, b1: x.b1, b2: x.b2, b3: x.b3 })),
       total: P.reduce((a, x) => a + x.T + x.F + x.b1 + x.b2 + x.b3, 0),
     });
