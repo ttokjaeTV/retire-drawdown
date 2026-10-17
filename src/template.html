@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<script src="https://ttokjaetv.github.io/member-lock.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>노후 자금 고갈 시뮬레이터 · 똑재TV</title>
 <meta name="description" content="국민연금·퇴직금·연금저축·IRP·ISA·예금을 넣으면 은퇴 후 해마다 세금과 건강보험료까지 계산해 노후 자금이 몇 살에 바닥나는지 알려 주는 무료 시뮬레이터. 2026년 세법·건보료 기준.">
@@ -567,9 +568,9 @@
 
   <div class="toolbar">
     <label class="tgl"><input type="checkbox" id="nh-on" checked><span>건보료 차감</span></label>
-    <label class="tgl"><input type="checkbox" id="crash"><span>은퇴 직후 폭락</span></label>
-    <label class="tgl" title="실제 세법은 물가에 맞춰 자동으로 오르지 않아요. 켜면 연금소득공제·과표구간·인적공제·1,500만원 기준이 물가만큼 오른다고 보고 계산해요."><input type="checkbox" id="tax-index"><span>세법 기준 물가연동</span></label>
-    <button type="button" class="tool-btn" id="share-btn">설정 링크 복사</button>
+    <label class="tgl" data-member-click="은퇴 직후 폭락·세법 물가연동"><input type="checkbox" id="crash"><span>은퇴 직후 폭락</span></label>
+    <label class="tgl" data-member-click="은퇴 직후 폭락·세법 물가연동" title="실제 세법은 물가에 맞춰 자동으로 오르지 않아요. 켜면 연금소득공제·과표구간·인적공제·1,500만원 기준이 물가만큼 오른다고 보고 계산해요."><input type="checkbox" id="tax-index"><span>세법 기준 물가연동</span></label>
+    <button type="button" class="tool-btn" id="share-btn" data-member-click="설정 링크 만들기">설정 링크 복사</button>
     <button type="button" class="tool-btn" id="reset-btn">처음 값으로</button>
     <a href="#result" class="tool-btn ghost">결과 보기 ↓</a>
   </div>
@@ -602,7 +603,7 @@
     <div class="grid-3" style="margin-top:16px;">
       <div>
         <span class="label">가구</span>
-        <div class="seg" id="hh-seg"><button type="button" data-v="single">1인 가구</button><button type="button" data-v="couple" class="on">부부</button></div>
+        <div class="seg" id="hh-seg"><button type="button" data-v="single">1인 가구</button><button type="button" data-v="couple" class="on" data-member-click="부부 모드">부부</button></div>
       </div>
       <div class="sp-only"><label class="label" for="sp-age">배우자 현재 나이</label><div class="input-wrap"><input type="text" inputmode="numeric" id="sp-age" value="51"><span class="input-unit">세</span></div><div class="input-hint">배우자도 같은 해에 은퇴한다고 봐요</div></div>
       <div class="sp-only">
@@ -620,7 +621,7 @@
     <div class="step-desc">은퇴 전에는 불리는 구성, 은퇴 후에는 꺼내 쓰는 구성으로 나눠 수익률을 잡습니다. 종목을 담으면 배당률(실데이터)과 주가성장률(프리셋)로 수익률을 계산해요.</div>
     <div class="grid-2">
       <div class="field pf-box">
-        <div class="pf-head"><span class="label" style="margin:0">은퇴 전 포트폴리오</span><div class="seg pf-modeseg"><button type="button" data-pfmode="pf">종목으로 정하기</button><button type="button" data-pfmode="man">직접 입력</button></div></div>
+        <div class="pf-head"><span class="label" style="margin:0">은퇴 전 포트폴리오</span><div class="seg pf-modeseg"><button type="button" data-pfmode="pf" data-member-click="종목으로 수익률 정하기">종목으로 정하기</button><button type="button" data-pfmode="man">직접 입력</button></div></div>
         <div class="pf-lead">모으는 시기 — 수익률을 높이는 구성</div>
         <div class="pf" id="pfPre">
           <div class="pf-pfonly">
@@ -633,7 +634,7 @@
         </div>
       </div>
       <div class="field pf-box">
-        <div class="pf-head"><span class="label" style="margin:0">은퇴 후 포트폴리오</span><div class="seg pf-modeseg"><button type="button" data-pfmode="pf">종목으로 정하기</button><button type="button" data-pfmode="man">직접 입력</button></div></div>
+        <div class="pf-head"><span class="label" style="margin:0">은퇴 후 포트폴리오</span><div class="seg pf-modeseg"><button type="button" data-pfmode="pf" data-member-click="종목으로 수익률 정하기">종목으로 정하기</button><button type="button" data-pfmode="man">직접 입력</button></div></div>
         <div class="pf-lead">꺼내 쓰는 시기 — 고배당·커버드콜로 현금 흐름을 만드는 구성</div>
         <div class="pf" id="pfPost">
           <div class="pf-pfonly">
@@ -742,10 +743,10 @@
     <div class="alerts" id="alerts"></div>
 
     <div class="sub-title" id="lever-title">바닥나는 나이를 늦추려면</div>
-    <div class="levers" id="levers"></div>
+    <div data-member="바닥을 늦추는 방법"><div class="levers" id="levers"></div></div>
 
     <div class="sub-title">계산기가 고른 꺼내는 순서</div>
-    <div class="order-box" id="order-box"></div>
+    <div data-member="꺼내는 순서 최적화"><div class="order-box" id="order-box"></div></div>
   </div>
 
   <!-- 차트 -->
@@ -756,7 +757,7 @@
     </div>
     <div class="chart-container"><canvas id="bal-chart"></canvas></div>
   </div>
-  <div class="card">
+  <div class="card" data-member="생활비 재원 구성">
     <div class="chart-head">
       <div><div class="chart-title">해마다 쓰는 돈을 어디서 마련하나</div><div class="chart-subtitle">생활비 + 건보료 + 세금 · 은퇴한 해부터</div></div>
     </div>
@@ -770,13 +771,15 @@
         <div><div class="chart-title">연도별 상세 (만원)</div><div class="chart-subtitle">해마다 꺼낸 돈·세금·건보료·남은 돈</div></div>
         <span class="fold-btn"><span class="open-txt">펼치기 ▾</span><span class="close-txt">접기 ▴</span></span>
       </summary>
+      <div data-member="연도별 상세표">
       <div class="table-wrap">
         <table class="data-table yr-table" id="yr-table">
           <thead><tr><th>연도</th><th>나이</th><th>생활비</th><th>건보료</th><th>공적연금</th><th>예금·일반</th><th>ISA</th><th><span class="bn n1">1</span> 원금</th><th><span class="bn n2">2</span> 퇴직금</th><th><span class="bn n3">3</span> 공제분·수익</th><th>세금</th><th>모자람</th><th>연말 금융자산</th><th>비고</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <div class="dl-row"><button type="button" class="tool-btn" id="csv-btn">표 내려받기 (CSV)</button></div>
+      <div class="dl-row"><button type="button" class="tool-btn" id="csv-btn" data-member-click="CSV 내려받기">표 내려받기 (CSV)</button></div>
+      </div>
     </details>
   </div>
 
@@ -1255,9 +1258,23 @@ function updateHints(p, res) {
   $('house-hint').innerHTML = p.house > 0 ? `과세표준 ${fmtMan(tb)} → 재산 점수 ${propPoints(tb)}점` : '시세가 아니라 공시가격. 무주택이면 0';
 }
 
+/* ---- 멤버십 잠금: 잠긴 상태(TJLock.locked())일 때만 무료 설정으로 맞춘다. 꺼져 있으면 아무 일도 하지 않는다 ----
+   부부 → 1인, 종목으로 정하기 → 직접 입력, 은퇴 직후 폭락·세법 물가연동 → 끔. 담아 둔 종목·배우자 입력값은 그대로 둔다. */
+function lockFree() {
+  if (!(window.TJLock && TJLock.locked())) return '';
+  let label = '';
+  if (ST.hh === 'couple') { setSeg('hh', 'single'); label = '부부 모드'; }
+  if ($('crash').checked || $('tax-index').checked) { $('crash').checked = false; $('tax-index').checked = false; label = label || '은퇴 직후 폭락·세법 물가연동'; }
+  let pf = false;
+  ['Pre', 'Post'].forEach(ph => { const s = PF.getState(ph); if (s.mode !== 'man') { PFS[ph] = { mode: 'man', h: s.h }; pf = true; } });
+  if (pf) { PF.render(); label = label || '종목으로 수익률 정하기'; }
+  return label;
+}
+
 /* ---- 계산 + 그리기 ---- */
 let balChart = null, srcChart = null, last = null;
 function render() {
+  lockFree();
   const p = readParams();
   const res = simulate(p);
   updateHints(p, res);
@@ -1535,6 +1552,8 @@ $('csv-btn').addEventListener('click', () => {
   if ([...q.keys()].length) { o = {}; q.forEach((v, k) => { o[k] = v; }); }
   else { try { o = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { o = null; } }
   if (o) apply(o);
+  const lk = lockFree();   // 공유 링크·저장된 설정이 잠긴 기능을 열면 무료 설정으로 열고 안내
+  if (lk && o && Object.keys(o).some(k => k !== 'lock')) TJLock.prompt(lk);
   PF.bind(schedule);
   PF.render();
   render();
