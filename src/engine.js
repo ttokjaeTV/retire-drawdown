@@ -122,13 +122,16 @@ function simulateOnce(p, order, capNoPub) {
   /* 일반계좌 한 해 수익 반영.
      세금: 수익 전체에 해마다 15.4% (국내상장 해외 ETF라면 팔 때 낼 세금을 미리 떼는 보수적 단순화).
      건보료·금융소득종합과세 판정용 이자·배당(lastFin): 배당 + 그해 팔아서 생긴 차익만.
-     배당률을 모르면(직접 입력 수익률) 수익 전체를 이자·배당으로 본다(예금처럼). */
+     배당률을 모르면(직접 입력 수익률) 수익 전체를 이자·배당으로 본다(예금처럼).
+     배당은 주가와 따로 나온다: 총수익률이 배당률보다 낮거나 마이너스인 해(폭락)에도 배당은 그대로 받고 그만큼 세금·건보료 판정에 잡힌다.
+     (총수익률 = 배당 + 주가 변동이므로, 배당을 받는 해에는 주가 몫이 그만큼 더 떨어진 것으로 본다 — 총자산 변화는 같다) */
   function growT(x, r, div, sold) {
-    const tg = x.T * r, dt = Math.max(0, tg) * TAX.DIV;
+    const tg = x.T * r;
+    const d = div == null ? 0 : Math.max(0, x.T * Math.max(0, div));
+    const dt = Math.max(0, tg, d) * TAX.DIV;            // 배당이 총수익보다 크면 최소한 배당에는 세금이 붙는다
     let fin;
     if (div == null) { fin = Math.max(0, tg); x.Tb = x.T + tg - dt; }
     else {
-      const d = Math.max(0, x.T * Math.min(Math.max(0, div), Math.max(0, r)));
       x.Tb += d * (1 - TAX.DIV);                      // 받은 배당(세후)은 다시 산 원금
       fin = d + (sold || 0);
     }

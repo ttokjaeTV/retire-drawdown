@@ -89,6 +89,13 @@ eq('연동 끄면 명목 공적연금에 지금 공제를 그대로', offR.rows[
   const T1 = 1e8 + 8e6 * 0.846, Tb1 = 1e8 + 3e6 * 0.846, sold = 12e6 * (1 - Tb1 / T1);
   eq('판 해: 이자·배당 = 남은 돈 배당 + 판 1,200만의 차익', o.rows[1].fin[0], (T1 - 12e6) * 0.03 + sold, 1);
   const q = E.simulateOnce({ ...p0, divPost: null }, E.ORDERS[0], 15e6);
-  eq('배당률 모르면(직접 입력) 수익 전체 8% = 800만', q.rows[0].fin[0], 8e6, 1); }
+  eq('배당률 모르면(직접 입력) 수익 전체 8% = 800만', q.rows[0].fin[0], 8e6, 1);
+  // 폭락 연도(총수익률 −20%)에도 배당 3%는 나온다 → 이자·배당 300만, 세금은 배당분 300만×15.4%
+  const c = E.simulateOnce({ ...p0, rPost: -0.2 }, E.ORDERS[0], 15e6);
+  eq('폭락 해에도 이자·배당 = 배당 3% (300만)', c.rows[0].fin[0], 3e6, 1);
+  eq('폭락 해 일반계좌 = 1억 − 2,000만 − 배당세 46.2만', c.rows[0].bal[0].T, 1e8 - 2e7 - 3e6 * 0.154, 1);
+  // 총수익률 2% < 배당률 3% 인 해도 배당은 3% 그대로
+  const s = E.simulateOnce({ ...p0, rPost: 0.02 }, E.ORDERS[0], 15e6);
+  eq('총수익률<배당률 해에도 이자·배당 = 3% (300만)', s.rows[0].fin[0], 3e6, 1); }
 console.log('예시 결과: 고갈', best.deplAge, '순서', best.order.join('>'), 'cap', best.capNoPub / 1e4, '최대 월', Math.round(E.maxSpend(big) / 1e4));
 console.log(fail ? `\n${fail} FAIL` : '\nALL PASS');
