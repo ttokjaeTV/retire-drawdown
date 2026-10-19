@@ -97,7 +97,7 @@ const ORDERS = [
   ['P3a', 'T', 'P2', 'P1', 'F', 'P3b', 'P2x', 'P3x'],
   ['T', 'F', 'P1', 'P2', 'P3a', 'P3b', 'P2x', 'P3x'],
 ];
-const CAPS_NOPUB = [TAX.SEP_LIMIT, 20e6, 25e6];   // 공적연금 받기 전 해의 P3a 상한 후보 (종합과세가 더 싼 구간을 쓸지)
+const CAPS_NOPUB = [TAX.SEP_LIMIT, 20e6, 25e6];   // 공적연금 받기 전 해의 P3a 상한 후보 (종합과세가 더 싼 구간을 쓸지) // rules-ok: 인출 탐색 후보값(제도 아님)
 const TIER_NAME = { T: '예금·일반계좌', F: 'ISA·국내주식', P1: '세액공제 받지 않은 원금', P2: '퇴직금 IRP', P3a: '세액공제 받은 원금·수익', P3b: `세액공제 받은 원금·수익(${(TAX.SEP_LIMIT / 1e4).toLocaleString('ko-KR')}만원 넘겨서)`, P2x: '퇴직금(수령한도 넘겨서)', P3x: '세액공제 받은 원금·수익(수령한도 넘겨서)' };
 
 /*
@@ -197,7 +197,7 @@ function simulateOnce(p, order, capNoPub) {
     const pub = P.map((x, i) => (ages[i] >= x.npsStart ? x.npsMon * 12 * ix : 0));
     // 공적연금 소득세 (공적연금만 있을 때) — 2002년 이후 납입분만 과세지만 전액 과세로 단순화
     // 공제액(extra)은 오늘 돈 가치. 세법 기준금액 물가연동이 꺼져 있으면 kx = 1이라 그대로 명목 고정
-    const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= TR.INCOME_TAX.elderAge ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
+    const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= TR.INCOME_TAX.elderAge ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= TR.INCOME_TAX.dependentIncomeLimit ? TAX.BASIC : 0); });
     const pubTax = P.map((x, i) => ct(pub[i], 0, extra[i]));
     // 건보료: 오늘 돈 가치로 계산한 뒤 물가만큼 키움. 이자·배당은 지난해 일반계좌 수익
     // 판정 기준 금액(1,000만·2,000만·5.4억·9억)은 명목 고정이라 ix를 넘겨 기준을 오늘 돈 가치로 낮춰 비교
@@ -240,7 +240,7 @@ function simulateOnce(p, order, capNoPub) {
           else if (a < TR.PENSION.minAge) continue;
           else if (tier === 'P2') { avail = Math.max(0, Math.min(x.b2, lim[i].l2 - w.P2)); tau = x.retRate * retireFactor(x.n2 + 1) * TAX.LOCAL; }
           else if (tier === 'P2x') { avail = x.b2; tau = x.retRate * TAX.LOCAL; }
-          else if (tier === 'P3a') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in, capOf(i) - w.P3in)); tau = pub[i] > 0 || capOf(i) <= SEP ? pensionRate(a) * TAX.LOCAL : 0.03; }
+          else if (tier === 'P3a') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in, capOf(i) - w.P3in)); tau = pub[i] > 0 || capOf(i) <= SEP ? pensionRate(a) * TAX.LOCAL : 0.03; } // rules-ok: 미리 떼는 세금 추정치(뒤에서 실제 세금으로 보정)
           else if (tier === 'P3b') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in)); tau = TAX.SEP_RATE * TAX.LOCAL; }
           else if (tier === 'P3x') { avail = x.b3; tau = TAX.OTHER_RATE * TAX.LOCAL; }
           if (avail <= 0.5) continue;
@@ -262,7 +262,7 @@ function simulateOnce(p, order, capNoPub) {
         const w = W[i], a = ages[i];
         const tRet = w.P2 * x.retRate * retireFactor(x.n2 + 1) * TAX.LOCAL + w.P2x * x.retRate * TAX.LOCAL;
         const p3 = w.P3in; let tPen = 0, how = '';
-        if (p3 > 0.5) {
+        if (p3 > 0.5) { // rules-ok: 반올림 문턱
           const comp = ct(pub[i], p3, extra[i]) - pubTax[i];
           const alt = p3 <= SEP ? p3 * pensionRate(a) * TAX.LOCAL : p3 * TAX.SEP_RATE * TAX.LOCAL;
           if (comp < alt) { tPen = comp; how = 'comp'; } else { tPen = alt; how = p3 <= SEP ? 'low' : 'sep'; }
