@@ -56,19 +56,35 @@ const NH_PROP = [[450,22],[900,44],[1350,66],[1800,97],[2250,122],[2700,146],[31
   [363000,1711],[399300,1781],[439230,1851],[483153,1921],[531468,1991],[584615,2061],[643077,2131],[707385,2201],[778124,2271],[Infinity,2341]];
 function houseTaxBase(g, multi) { if (!(g > 0)) return 0; if (multi) return g * 0.6; return g * (g <= 3e8 ? 0.43 : g <= 6e8 ? 0.44 : 0.45); }
 function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) return 0; for (const [l, p] of NH_PROP) if (man <= l) return p; return 2341; }
-const nhFin = f => (f > NH.finMin ? f : 0);
+// 판정 기준 금액(이자·배당 1,000만원, 피부양자 2,000만원·5.4억·9억·1,000만원)은 법에 정한 명목 금액이라 물가에 연동하지 않는다
+// (국민건강보험법 시행규칙 제44조①, 별표 1의2). 오늘 돈 가치로 계산할 때는 k(= 물가 배수)로 기준을 나눠 비교 = 명목 금액을 고정 기준과 비교
+const nhFin = (f, k) => (f > NH.finMin / (k || 1) ? f : 0);
 function nhRegional(o) {
-  const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v)), 0) + Math.max(0, o.other || 0);
+  const k = o.ix || 1;
+  const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v), k), 0) + Math.max(0, o.other || 0);
   const m = income / 12;
-  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, m * NH.hi);
+  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
   const propPrem = propPoints(o.taxBase || 0) * NH.perPoint;
   const health = incPrem + propPrem;
   return { income, incPrem, propPrem, health, total: health * (1 + NH.ltc / NH.hi) };
 }
-function nhDependentOk(people) {   // 소득 요건은 부부 함께, 재산 요건은 각자
-  const r = people.map(p => { const inc = Math.max(0, p.pub || 0) + nhFin(Math.max(0, p.fin || 0)); const tb = p.taxBase || 0;
-    return { incOk: inc <= NH.depIncome, propOk: tb <= NH.depProp1 || (tb <= NH.depProp2 && inc <= NH.depPropIncome) }; });
+function nhDependentOk(people, k) {   // 소득 요건은 부부 함께, 재산 요건은 각자. k: 물가 배수(오늘 돈 가치로 넣었을 때 기준을 나눔)
+  k = k || 1;
+  const r = people.map(p => { const inc = Math.max(0, p.pub || 0) + nhFin(Math.max(0, p.fin || 0), k); const tb = p.taxBase || 0;
+    return { incOk: inc <= NH.depIncome / k, propOk: tb <= NH.depProp1 / k || (tb <= NH.depProp2 / k && inc <= NH.depPropIncome / k) }; });
   return r.every(x => x.incOk) && r.every(x => x.propOk);
+}
+
+/* ---- 연금계좌 운용손익 ----
+   수익은 모두 ③. 손실은 원금을 인출 순서의 반대(③ → ② → ①)로 차감 (소득세법 시행령 제40조의3 제5항) — 바구니가 음수가 되지 않게.
+   pension-tax-sim/src/engine.js와 같은 규칙 */
+function growPension(x, r) {
+  const g = (x.b1 + x.b2 + x.b3) * r;
+  if (g >= 0) { x.b3 += g; return; }
+  let loss = -g;
+  const l3 = Math.min(x.b3, loss); x.b3 -= l3; loss -= l3;
+  const l2 = Math.min(x.b2, loss); x.b2 -= l2; loss -= l2;
+  x.b1 -= Math.min(x.b1, loss);
 }
 
 /* ---- 국민연금 ---- */
@@ -152,8 +168,7 @@ function simulateOnce(p, order, capNoPub) {
     if (t < R) {   // ---------- 모으는 시기 ----------
       const r = p.rPre;
       P.forEach(x => {
-        const g = (x.b1 + x.b2 + x.b3) * r;
-        x.b3 += g;                                      // 연금계좌 운용수익은 모두 ③
+        growPension(x, r);                              // 연금계좌 운용수익은 모두 ③, 손실은 ③ → ② → ①
         x.F *= 1 + r;
         sum.taxDivPre += growT(x, r, p.divPre, 0);
         const c = Math.min(Math.max(0, x.cTc || 0), 18e6);
@@ -190,13 +205,14 @@ function simulateOnce(p, order, capNoPub) {
     const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= 70 ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
     const pubTax = P.map((x, i) => ct(pub[i], 0, extra[i]));
     // 건보료: 오늘 돈 가치로 계산한 뒤 물가만큼 키움. 이자·배당은 지난해 일반계좌 수익
+    // 판정 기준 금액(1,000만·2,000만·5.4억·9억)은 명목 고정이라 ix를 넘겨 기준을 오늘 돈 가치로 낮춰 비교
     let nh = 0;
     if (p.nhOn) {
       const finR = P.map(x => (x.lastFin || 0) / ix);
       const pubR = pub.map(v => v / ix);
       const tb = houseTaxBase(p.house || 0, p.multi);
-      const depOk = p.dep && nhDependentOk(P.map((x, i) => ({ pub: pubR[i], fin: finR[i], taxBase: i === 0 ? tb : 0 })));
-      nh = depOk ? 0 : nhRegional({ pub: pubR, fin: finR, taxBase: tb }).total * 12 * ix;
+      const depOk = p.dep && nhDependentOk(P.map((x, i) => ({ pub: pubR[i], fin: finR[i], taxBase: i === 0 ? tb : 0 })), ix);
+      nh = depOk ? 0 : nhRegional({ pub: pubR, fin: finR, taxBase: tb, ix }).total * 12 * ix;
       row.nhDep = depOk;
     }
     let need = spendY + nh + pubTax.reduce((a, v) => a + v, 0) - pub.reduce((a, v) => a + v, 0);
@@ -274,7 +290,7 @@ function simulateOnce(p, order, capNoPub) {
 
     // 수익 반영
     P.forEach(x => {
-      if (r >= 0) x.b3 += (x.b1 + x.b2 + x.b3) * r; else { x.b1 *= 1 + r; x.b2 *= 1 + r; x.b3 *= 1 + r; }
+      growPension(x, r);
       x.F *= 1 + r;
     });
     P.forEach((x, i) => {

@@ -823,7 +823,7 @@
           <li><b>퇴직금</b>은 일시금이면 퇴직소득세를 뗀 돈이 예금·일반계좌로, IRP 연금이면 세전 금액이 IRP로 들어가 꺼낼 때 퇴직소득세의 70%(11년차부터 60%, 21년차부터 50%)를 내요.</li>
           <li><b>공적연금 소득세</b>는 연금소득공제·본인공제·70세 이상 경로우대·배우자공제·표준세액공제를 넣어 계산하고, 2002년 이전 납입분도 과세로 봐 실제보다 조금 많게 잡혀요.</li>
           <li><b>세법 기준금액</b>(연금소득공제 한도 900만원, 과표구간, 인적공제, 사적연금 1,500만원, 금융소득 2,000만원)은 기본으로 <b>지금 금액 그대로</b> 둡니다. 실제 세법은 물가에 자동으로 맞춰 오르지 않기 때문이에요. 다만 몇 년에 한 번씩 올려 왔기 때문에 장기로는 세금이 많게 잡히는 편이라, 맨 위 <b>‘세법 기준 물가연동’</b>을 켜면 이 금액들이 물가만큼 오른다고 보고 다시 계산해요. 실제는 두 결과 사이일 가능성이 높아요.</li>
-          <li><b>건보료</b>(2026년 기준)는 지역가입자로 보고 부부 한 세대로 매겨요: 공적연금 50% + 이자·배당(1인 연 1,000만원 넘으면 전액)에 7.19%, 집 공시가격의 과세표준(1주택 43~45%, 2주택 이상 60%)에서 1억원을 뺀 재산 점수 × 211.5원, 장기요양보험료 포함. 오늘 기준으로 계산한 뒤 물가만큼 올려요.</li>
+          <li><b>건보료</b>(2026년 기준)는 지역가입자로 보고 부부 한 세대로 매겨요: 공적연금 50% + 이자·배당(1인 연 1,000만원 넘으면 전액)에 7.19%, 집 공시가격의 과세표준(1주택 43~45%, 2주택 이상 60%)에서 1억원을 뺀 재산 점수 × 211.5원, 장기요양보험료 포함. 보험료는 오늘 기준으로 계산한 뒤 물가만큼 올려요. 다만 <b>판정 기준 금액</b>(이자·배당 1,000만원, 피부양자 소득 2,000만원·재산 5.4억/9억원)은 법에 정한 금액이라 <b>물가에 연동되지 않아요</b>. 그래서 물가가 오르면 같은 생활 수준이어도 기준을 넘는 해가 생겨요.</li>
           <li><b>납입 한도</b>: 연금저축·IRP는 연 1,800만원까지 넣고 그중 900만원까지만 세액공제(넘는 돈은 <span class="bn n1">1</span>), ISA는 연 2,000만원까지 넣는다고 봐요.</li>
         </ul>
       </div>
@@ -908,19 +908,35 @@ const NH_PROP = [[450,22],[900,44],[1350,66],[1800,97],[2250,122],[2700,146],[31
   [363000,1711],[399300,1781],[439230,1851],[483153,1921],[531468,1991],[584615,2061],[643077,2131],[707385,2201],[778124,2271],[Infinity,2341]];
 function houseTaxBase(g, multi) { if (!(g > 0)) return 0; if (multi) return g * 0.6; return g * (g <= 3e8 ? 0.43 : g <= 6e8 ? 0.44 : 0.45); }
 function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) return 0; for (const [l, p] of NH_PROP) if (man <= l) return p; return 2341; }
-const nhFin = f => (f > NH.finMin ? f : 0);
+// 판정 기준 금액(이자·배당 1,000만원, 피부양자 2,000만원·5.4억·9억·1,000만원)은 법에 정한 명목 금액이라 물가에 연동하지 않는다
+// (국민건강보험법 시행규칙 제44조①, 별표 1의2). 오늘 돈 가치로 계산할 때는 k(= 물가 배수)로 기준을 나눠 비교 = 명목 금액을 고정 기준과 비교
+const nhFin = (f, k) => (f > NH.finMin / (k || 1) ? f : 0);
 function nhRegional(o) {
-  const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v)), 0) + Math.max(0, o.other || 0);
+  const k = o.ix || 1;
+  const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v), k), 0) + Math.max(0, o.other || 0);
   const m = income / 12;
-  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, m * NH.hi);
+  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
   const propPrem = propPoints(o.taxBase || 0) * NH.perPoint;
   const health = incPrem + propPrem;
   return { income, incPrem, propPrem, health, total: health * (1 + NH.ltc / NH.hi) };
 }
-function nhDependentOk(people) {   // 소득 요건은 부부 함께, 재산 요건은 각자
-  const r = people.map(p => { const inc = Math.max(0, p.pub || 0) + nhFin(Math.max(0, p.fin || 0)); const tb = p.taxBase || 0;
-    return { incOk: inc <= NH.depIncome, propOk: tb <= NH.depProp1 || (tb <= NH.depProp2 && inc <= NH.depPropIncome) }; });
+function nhDependentOk(people, k) {   // 소득 요건은 부부 함께, 재산 요건은 각자. k: 물가 배수(오늘 돈 가치로 넣었을 때 기준을 나눔)
+  k = k || 1;
+  const r = people.map(p => { const inc = Math.max(0, p.pub || 0) + nhFin(Math.max(0, p.fin || 0), k); const tb = p.taxBase || 0;
+    return { incOk: inc <= NH.depIncome / k, propOk: tb <= NH.depProp1 / k || (tb <= NH.depProp2 / k && inc <= NH.depPropIncome / k) }; });
   return r.every(x => x.incOk) && r.every(x => x.propOk);
+}
+
+/* ---- 연금계좌 운용손익 ----
+   수익은 모두 ③. 손실은 원금을 인출 순서의 반대(③ → ② → ①)로 차감 (소득세법 시행령 제40조의3 제5항) — 바구니가 음수가 되지 않게.
+   pension-tax-sim/src/engine.js와 같은 규칙 */
+function growPension(x, r) {
+  const g = (x.b1 + x.b2 + x.b3) * r;
+  if (g >= 0) { x.b3 += g; return; }
+  let loss = -g;
+  const l3 = Math.min(x.b3, loss); x.b3 -= l3; loss -= l3;
+  const l2 = Math.min(x.b2, loss); x.b2 -= l2; loss -= l2;
+  x.b1 -= Math.min(x.b1, loss);
 }
 
 /* ---- 국민연금 ---- */
@@ -1004,8 +1020,7 @@ function simulateOnce(p, order, capNoPub) {
     if (t < R) {   // ---------- 모으는 시기 ----------
       const r = p.rPre;
       P.forEach(x => {
-        const g = (x.b1 + x.b2 + x.b3) * r;
-        x.b3 += g;                                      // 연금계좌 운용수익은 모두 ③
+        growPension(x, r);                              // 연금계좌 운용수익은 모두 ③, 손실은 ③ → ② → ①
         x.F *= 1 + r;
         sum.taxDivPre += growT(x, r, p.divPre, 0);
         const c = Math.min(Math.max(0, x.cTc || 0), 18e6);
@@ -1042,13 +1057,14 @@ function simulateOnce(p, order, capNoPub) {
     const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= 70 ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
     const pubTax = P.map((x, i) => ct(pub[i], 0, extra[i]));
     // 건보료: 오늘 돈 가치로 계산한 뒤 물가만큼 키움. 이자·배당은 지난해 일반계좌 수익
+    // 판정 기준 금액(1,000만·2,000만·5.4억·9억)은 명목 고정이라 ix를 넘겨 기준을 오늘 돈 가치로 낮춰 비교
     let nh = 0;
     if (p.nhOn) {
       const finR = P.map(x => (x.lastFin || 0) / ix);
       const pubR = pub.map(v => v / ix);
       const tb = houseTaxBase(p.house || 0, p.multi);
-      const depOk = p.dep && nhDependentOk(P.map((x, i) => ({ pub: pubR[i], fin: finR[i], taxBase: i === 0 ? tb : 0 })));
-      nh = depOk ? 0 : nhRegional({ pub: pubR, fin: finR, taxBase: tb }).total * 12 * ix;
+      const depOk = p.dep && nhDependentOk(P.map((x, i) => ({ pub: pubR[i], fin: finR[i], taxBase: i === 0 ? tb : 0 })), ix);
+      nh = depOk ? 0 : nhRegional({ pub: pubR, fin: finR, taxBase: tb, ix }).total * 12 * ix;
       row.nhDep = depOk;
     }
     let need = spendY + nh + pubTax.reduce((a, v) => a + v, 0) - pub.reduce((a, v) => a + v, 0);
@@ -1126,7 +1142,7 @@ function simulateOnce(p, order, capNoPub) {
 
     // 수익 반영
     P.forEach(x => {
-      if (r >= 0) x.b3 += (x.b1 + x.b2 + x.b3) * r; else { x.b1 *= 1 + r; x.b2 *= 1 + r; x.b3 *= 1 + r; }
+      growPension(x, r);
       x.F *= 1 + r;
     });
     P.forEach((x, i) => {

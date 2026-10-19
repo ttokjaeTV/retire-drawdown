@@ -97,5 +97,23 @@ eq('연동 끄면 명목 공적연금에 지금 공제를 그대로', offR.rows[
   // 총수익률 2% < 배당률 3% 인 해도 배당은 3% 그대로
   const s = E.simulateOnce({ ...p0, rPost: 0.02 }, E.ORDERS[0], 15e6);
   eq('총수익률<배당률 해에도 이자·배당 = 3% (300만)', s.rows[0].fin[0], 3e6, 1); }
+// 18) 건보 판정 기준 금액은 명목 고정: 물가 2.5%·20년 뒤 명목 금융 1,300만은 전액 반영, 명목 공적연금 2,200만은 피부양자 탈락
+{ const k = Math.pow(1.025, 20);
+  eq('명목 금융 1,300만 → 건보 반영 1,300만', E.nhRegional({ fin: [13e6 / k], ix: k }).income * k, 13e6, 1);
+  eq('명목 공적연금 2,200만 → 피부양자 탈락', E.nhDependentOk([{ pub: 22e6 / k, fin: 0, taxBase: 0 }], k) ? 1 : 0, 0, 0);
+  eq('명목 공적연금 1,900만 → 피부양자 유지', E.nhDependentOk([{ pub: 19e6 / k, fin: 0, taxBase: 0 }], k) ? 1 : 0, 1, 0);
+  // 국민연금 오늘 연 1,800만(물가연동) → 1,800×1.025^5 = 2,036만 > 2,000만이라 5년차(70세)부터 탈락
+  const o = E.simulateOnce(base({ inf: 0.025, nhOn: true, dep: true, endAge: 75, me: { age: 65, retireAge: 65, cash: 5e8, nps: 1.5e6, npsAge: null } }), E.ORDERS[0], 15e6);
+  eq('69세까지 피부양자', o.rows[4].nhDep ? 1 : 0, 1, 0);
+  eq('70세부터 지역가입자', o.rows[5].nhDep ? 1 : 0, 0, 0); }
+// 19) 지역 하한: 월 소득 280,000원 바로 위도 하한 20,160원
+eq('공적연금 672.5만 → 소득분 하한 20,160', E.nhRegional({ pub: [6.725e6] }).incPrem, 20160, 0.01);
+// 20) 연금계좌 손실은 ③ → ② → ① 순서로 (시행령 제40조의3 ⑤)
+{ const o = E.simulateOnce(base({ rPre: -0.1, endAge: 62, spend: 0, me: { age: 57, ntc: 1e8 } }), E.ORDERS[0], 15e6);
+  eq('은퇴 전 −10%×3년: ① 7,290만', o.rows[2].bal[0].b1, 7.29e7, 1);
+  eq('은퇴 전 −10%×3년: ③ 음수 아님', o.rows[2].bal[0].b3, 0, 0);
+  const c = E.simulateOnce(base({ rPre: 0.1, crash: true, endAge: 61, spend: 0, me: { age: 59, ntc: 1e8 } }), E.ORDERS[0], 15e6);
+  eq('+10% 후 −20%: ③ 1,000만이 먼저 0', c.rows[1].bal[0].b3, 0, 0);
+  eq('+10% 후 −20%: ① 8,800만', c.rows[1].bal[0].b1, 8.8e7, 1); }
 console.log('예시 결과: 고갈', best.deplAge, '순서', best.order.join('>'), 'cap', best.capNoPub / 1e4, '최대 월', Math.round(E.maxSpend(big) / 1e4));
 console.log(fail ? `\n${fail} FAIL` : '\nALL PASS');
