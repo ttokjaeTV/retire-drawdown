@@ -1,25 +1,26 @@
 /* ===== 노후 자금 고갈 시뮬레이터 엔진 (2026년 세법·건보료 기준) =====
    세금 규칙은 연금 인출 세금 시뮬레이터(ttokjaeTV/pension-tax-sim/src/engine.js)와 같은 값,
    건보료는 같은 파일의 NH·nhRegional·nhDependent와 같은 값입니다. 한쪽을 바꾸면 다른 쪽도 같이 바꾸세요.
-   금액 단위: 원 · 나이: 만 나이 · 1년 단위 계산(인출은 매년 초, 수익은 남은 돈에 연말 반영) */
+   금액 단위: 원 · 나이: 만 나이 · 1년 단위 계산(인출은 매년 초, 수익은 남은 돈에 연말 반영)
+   제도 숫자(세율·한도·구간표·건보 요율·국민연금 값)는 공용 기준 파일 rules.js(전역 TTOKJAE_RULES)에서 읽는다 */
 
-const TAX = { LOCAL: 1.1, SEP_LIMIT: 15e6, SEP_RATE: 0.15, OTHER_RATE: 0.15, BASIC: 1.5e6, ELDER: 1e6, STD_CREDIT: 7e4, DIV: 0.154 };
-function pensionRate(age) { return age >= 80 ? 0.03 : age >= 70 ? 0.04 : 0.05; }
-function retireFactor(n) { return n <= 10 ? 0.7 : n <= 20 ? 0.6 : 0.5; }
+const TR = TTOKJAE_RULES;
+const TAX = { LOCAL: 1 + TR.INCOME_TAX.local, SEP_LIMIT: TR.PENSION.separateLimit, SEP_RATE: TR.PENSION.separateRateNational,
+  OTHER_RATE: TR.PENSION.otherIncomeRateNational, BASIC: TR.INCOME_TAX.basicDeduction, ELDER: TR.INCOME_TAX.elderDeduction,
+  STD_CREDIT: TR.INCOME_TAX.standardTaxCredit, DIV: TR.FIN_INCOME.withholdingWithLocal };
+// 수령 나이 < 상한인 첫 행 (70 미만 5%, 80 미만 4%, 그 이상 3% — 국세)
+function pensionRate(age) { for (const [lim, r] of TR.PENSION.rateByAgeNational) if (age < lim) return r; }
+// 실제 수령연차 ≤ 상한인 첫 행 (10년 이하 70%, 20년 이하 60%, 초과 50%)
+function retireFactor(n) { for (const [lim, f] of TR.RETIREMENT_INCOME_TAX.pensionPayRatio) if (n <= lim) return f; }
 function progressiveTax(base) {
   if (base <= 0) return 0;
-  const B = [[14e6, 0.06, 0], [50e6, 0.15, 1.26e6], [88e6, 0.24, 5.76e6], [150e6, 0.35, 15.44e6],
-    [300e6, 0.38, 19.94e6], [500e6, 0.40, 25.94e6], [1e9, 0.42, 35.94e6], [Infinity, 0.45, 65.94e6]];
-  for (const [lim, r, d] of B) if (base <= lim) return base * r - d;
+  for (const [lim, r, d] of TR.INCOME_TAX.brackets) if (base <= lim) return base * r - d;
   return 0;
 }
 function pensionDeduction(total) {
   let d;
-  if (total <= 3.5e6) d = total;
-  else if (total <= 7e6) d = 3.5e6 + (total - 3.5e6) * 0.4;
-  else if (total <= 14e6) d = 4.9e6 + (total - 7e6) * 0.2;
-  else d = 6.3e6 + (total - 14e6) * 0.1;
-  return Math.min(d, 9e6);
+  for (const [lim, r, s, c] of TR.INCOME_TAX.pensionIncomeDeduction) if (total <= lim) { d = c + (total - s) * r; break; }
+  return Math.min(d, TR.INCOME_TAX.pensionIncomeDeductionCap);
 }
 // 연금소득 종합과세 (지방세 포함). extraDed: 경로우대·배우자공제 등 추가 인적공제
 function compTax(pub, priv, extraDed) {
@@ -31,31 +32,25 @@ function compTax(pub, priv, extraDed) {
 function retirementTax(sev, years) {
   years = Math.max(1, Math.ceil(years));
   let sd;
-  if (years <= 5) sd = 1e6 * years;
-  else if (years <= 10) sd = 5e6 + 2e6 * (years - 5);
-  else if (years <= 20) sd = 15e6 + 2.5e6 * (years - 10);
-  else sd = 40e6 + 3e6 * (years - 20);
+  for (const [lim, per, s, c] of TR.RETIREMENT_INCOME_TAX.serviceYearDeduction) if (years <= lim) { sd = c + per * (years - s); break; }
   const conv = Math.max(0, sev - sd) * 12 / years;
   let cd;
-  if (conv <= 8e6) cd = conv;
-  else if (conv <= 70e6) cd = 8e6 + (conv - 8e6) * 0.6;
-  else if (conv <= 100e6) cd = 45.2e6 + (conv - 70e6) * 0.55;
-  else if (conv <= 300e6) cd = 61.7e6 + (conv - 100e6) * 0.45;
-  else cd = 151.7e6 + (conv - 300e6) * 0.35;
+  for (const [lim, r, s, c] of TR.RETIREMENT_INCOME_TAX.convertedPayDeduction) if (conv <= lim) { cd = c + (conv - s) * r; break; }
   return Math.max(0, progressiveTax(Math.max(0, conv - cd)) * years / 12);
 }
 
-/* ---- 건보료 (pension-tax-sim/src/engine.js NH와 같은 값) ---- */
-const NH = { hi: 0.0719, ltc: 0.009448, floorIncomeM: 280000, floorPrem: 20160, capPremM: 4591740,
-  perPoint: 211.5, propDed: 1e8, finMin: 10e6, pubRate: 0.5, depIncome: 20e6, depProp1: 5.4e8, depProp2: 9e8, depPropIncome: 10e6 };
-const NH_PROP = [[450,22],[900,44],[1350,66],[1800,97],[2250,122],[2700,146],[3150,171],[3600,195],[4050,219],[4500,244],
-  [5020,268],[5590,294],[6220,320],[6930,344],[7710,365],[8590,386],[9570,412],[10700,439],[11900,465],[13300,490],
-  [14800,516],[16400,535],[18300,559],[20400,586],[22700,611],[25300,637],[28100,659],[31300,681],[34900,706],[38800,731],
-  [43200,757],[48100,785],[53600,812],[59700,841],[66500,881],[74000,921],[82400,961],[91800,1001],[103000,1041],[114000,1091],
-  [127000,1141],[142000,1191],[158000,1241],[176000,1291],[196000,1341],[218000,1391],[242000,1451],[270000,1511],[300000,1571],[330000,1641],
-  [363000,1711],[399300,1781],[439230,1851],[483153,1921],[531468,1991],[584615,2061],[643077,2131],[707385,2201],[778124,2271],[Infinity,2341]];
-function houseTaxBase(g, multi) { if (!(g > 0)) return 0; if (multi) return g * 0.6; return g * (g <= 3e8 ? 0.43 : g <= 6e8 ? 0.44 : 0.45); }
-function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) return 0; for (const [l, p] of NH_PROP) if (man <= l) return p; return 2341; }
+/* ---- 건보료 (pension-tax-sim/src/engine.js NH와 같은 값 — rules.js NHIS) ---- */
+const NH = { hi: TR.NHIS.healthRate, ltc: TR.NHIS.ltcRate, floorIncomeM: TR.NHIS.floorIncomeMonthly, floorPrem: TR.NHIS.premiumFloorMonthly,
+  capPremM: TR.NHIS.premiumCapMonthly, perPoint: TR.NHIS.perPoint, propDed: TR.NHIS.propertyDeduction, finMin: TR.NHIS.finIncomeThreshold,
+  pubRate: TR.NHIS.publicPensionRatio, depIncome: TR.NHIS.dependent.income, depProp1: TR.NHIS.dependent.propLow,
+  depProp2: TR.NHIS.dependent.propHigh, depPropIncome: TR.NHIS.dependent.propIncome };
+const NH_PROP = TR.NHIS.propertyPointTable;   // [(과세표준 − 1억) 상한(만원), 점수] 60등급
+function houseTaxBase(g, multi) {
+  if (!(g > 0)) return 0;
+  if (multi) return g * TR.PROPERTY.fairMarketRatioMultiHome;
+  for (const [lim, r] of TR.PROPERTY.fairMarketRatioSingleHome) if (g <= lim) return g * r;
+}
+function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) return 0; for (const [l, p] of NH_PROP) if (man <= l) return p; return NH_PROP[NH_PROP.length - 1][1]; }
 // 판정 기준 금액(이자·배당 1,000만원, 피부양자 2,000만원·5.4억·9억·1,000만원)은 법에 정한 명목 금액이라 물가에 연동하지 않는다
 // (국민건강보험법 시행규칙 제44조①, 별표 1의2). 오늘 돈 가치로 계산할 때는 k(= 물가 배수)로 기준을 나눠 비교 = 명목 금액을 고정 기준과 비교
 const nhFin = (f, k) => (f > NH.finMin / (k || 1) ? f : 0);
@@ -88,8 +83,8 @@ function growPension(x, r) {
 }
 
 /* ---- 국민연금 ---- */
-function npsLegalAge(by) { if (by <= 1952) return 60; if (by <= 1956) return 61; if (by <= 1960) return 62; if (by <= 1964) return 63; if (by <= 1968) return 64; return 65; }
-function npsFactor(shift) { return shift < 0 ? 1 + 0.06 * shift : 1 + 0.072 * shift; }   // 1년 앞당길 때 −6%, 미룰 때 +7.2% (최대 5년)
+function npsLegalAge(by) { const T = TR.NPS.startAgeByBirthYear; for (const [lim, a] of T) if (by <= lim) return a; return T[T.length - 1][1]; }
+function npsFactor(shift) { return shift < 0 ? 1 + TR.NPS.earlyReductionPerYear * shift : 1 + TR.NPS.deferralBonusPerYear * shift; }   // 1년 앞당길 때 −6%, 미룰 때 +7.2% (최대 5년)
 
 /* ---- 인출 순서 후보 ----
    T 예금·일반계좌 · F ISA·국내주식(비과세) · P1 세액공제 받지 않은 원금 · P2 퇴직금(IRP, 한도 안)
@@ -102,8 +97,8 @@ const ORDERS = [
   ['P3a', 'T', 'P2', 'P1', 'F', 'P3b', 'P2x', 'P3x'],
   ['T', 'F', 'P1', 'P2', 'P3a', 'P3b', 'P2x', 'P3x'],
 ];
-const CAPS_NOPUB = [15e6, 20e6, 25e6];   // 공적연금 받기 전 해의 P3a 상한 후보 (종합과세가 더 싼 구간을 쓸지)
-const TIER_NAME = { T: '예금·일반계좌', F: 'ISA·국내주식', P1: '세액공제 받지 않은 원금', P2: '퇴직금 IRP', P3a: '세액공제 받은 원금·수익', P3b: '세액공제 받은 원금·수익(1,500만원 넘겨서)', P2x: '퇴직금(수령한도 넘겨서)', P3x: '세액공제 받은 원금·수익(수령한도 넘겨서)' };
+const CAPS_NOPUB = [TAX.SEP_LIMIT, 20e6, 25e6];   // 공적연금 받기 전 해의 P3a 상한 후보 (종합과세가 더 싼 구간을 쓸지)
+const TIER_NAME = { T: '예금·일반계좌', F: 'ISA·국내주식', P1: '세액공제 받지 않은 원금', P2: '퇴직금 IRP', P3a: '세액공제 받은 원금·수익', P3b: `세액공제 받은 원금·수익(${(TAX.SEP_LIMIT / 1e4).toLocaleString('ko-KR')}만원 넘겨서)`, P2x: '퇴직금(수령한도 넘겨서)', P3x: '세액공제 받은 원금·수익(수령한도 넘겨서)' };
 
 /*
  p = {
@@ -126,7 +121,7 @@ function simulateOnce(p, order, capNoPub) {
   P.forEach(x => {
     x.b1 = x.ntc; x.b2 = 0; x.b3 = x.tc; x.F = x.isa; x.T = x.cash; x.Tb = x.cash; x.retRate = 0; x.n2 = 0; x.n2Start = null;
     x.by = p.year0 - x.age; x.npsLegal = npsLegalAge(x.by);
-    x.npsStart = Math.min(x.npsLegal + 5, Math.max(x.npsLegal - 5, Math.round(x.npsAge || x.npsLegal)));
+    x.npsStart = Math.min(x.npsLegal + TR.NPS.maxDeferralYears, Math.max(x.npsLegal - TR.NPS.maxEarlyYears, Math.round(x.npsAge || x.npsLegal)));
     x.npsMon = (x.nps || 0) * npsFactor(x.npsStart - x.npsLegal);
   });
   const rows = [];
@@ -171,10 +166,10 @@ function simulateOnce(p, order, capNoPub) {
         growPension(x, r);                              // 연금계좌 운용수익은 모두 ③, 손실은 ③ → ② → ①
         x.F *= 1 + r;
         sum.taxDivPre += growT(x, r, p.divPre, 0);
-        const c = Math.min(Math.max(0, x.cTc || 0), 18e6);
-        const ded = x.income === false ? 0 : Math.min(c, 9e6);
+        const c = Math.min(Math.max(0, x.cTc || 0), TR.PENSION_SAVINGS.contributionLimit);
+        const ded = x.income === false ? 0 : Math.min(c, TR.PENSION_SAVINGS.creditLimitTotal);
         x.b3 += ded; x.b1 += c - ded;
-        x.F += Math.min(Math.max(0, x.cIsa || 0), 20e6);
+        x.F += Math.min(Math.max(0, x.cIsa || 0), TR.ISA.annualLimit);
       });
       row.bal = P.map(x => ({ T: x.T, F: x.F, b1: x.b1, b2: x.b2, b3: x.b3 }));
       row.total = P.reduce((a, x) => a + x.T + x.F + x.b1 + x.b2 + x.b3, 0);
@@ -202,7 +197,7 @@ function simulateOnce(p, order, capNoPub) {
     const pub = P.map((x, i) => (ages[i] >= x.npsStart ? x.npsMon * 12 * ix : 0));
     // 공적연금 소득세 (공적연금만 있을 때) — 2002년 이후 납입분만 과세지만 전액 과세로 단순화
     // 공제액(extra)은 오늘 돈 가치. 세법 기준금액 물가연동이 꺼져 있으면 kx = 1이라 그대로 명목 고정
-    const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= 70 ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
+    const extra = P.map((x, i) => { const sp = pub[1 - i] / kx; return (ages[i] >= TR.INCOME_TAX.elderAge ? TAX.ELDER : 0) + (couple && (sp - pensionDeduction(sp)) <= 1e6 ? TAX.BASIC : 0); });
     const pubTax = P.map((x, i) => ct(pub[i], 0, extra[i]));
     // 건보료: 오늘 돈 가치로 계산한 뒤 물가만큼 키움. 이자·배당은 지난해 일반계좌 수익
     // 판정 기준 금액(1,000만·2,000만·5.4억·9억)은 명목 고정이라 ix를 넘겨 기준을 오늘 돈 가치로 낮춰 비교
@@ -222,9 +217,10 @@ function simulateOnce(p, order, capNoPub) {
     // 연금수령한도 (계좌를 나눠 둔 것으로 보고 ②·③ 각각)
     const lim = P.map((x, i) => {
       const a = ages[i];
-      const n3 = 1 + Math.max(0, a - 55);
-      const n2 = x.n2Start == null ? 1 : 1 + Math.max(0, a - Math.max(55, x.n2Start));
-      return { l2: n2 >= 11 ? Infinity : x.b2 / (11 - n2) * 1.2, l3: n3 >= 11 ? Infinity : x.b3 / (11 - n3) * 1.2 };
+      const MA = TR.PENSION.minAge, FY = TR.PENSION.payoutLimitFreeYear, LF = TR.PENSION.payoutLimitFactor;
+      const n3 = 1 + Math.max(0, a - MA);
+      const n2 = x.n2Start == null ? 1 : 1 + Math.max(0, a - Math.max(MA, x.n2Start));
+      return { l2: n2 >= FY ? Infinity : x.b2 / (FY - n2) * LF, l3: n3 >= FY ? Infinity : x.b3 / (FY - n3) * LF };
     });
     const W = P.map(() => ({ T: 0, F: 0, P1: 0, P2: 0, P3: 0, P2x: 0, P3x: 0, P3in: 0 }));
     const assumed = P.map(() => 0);   // 인출하면서 미리 떼어 둔 세금
@@ -241,7 +237,7 @@ function simulateOnce(p, order, capNoPub) {
           if (tier === 'T') avail = x.T;
           else if (tier === 'F') avail = x.F;
           else if (tier === 'P1') avail = x.b1;              // 세액공제 받지 않은 원금은 언제든 세금 없이
-          else if (a < 55) continue;
+          else if (a < TR.PENSION.minAge) continue;
           else if (tier === 'P2') { avail = Math.max(0, Math.min(x.b2, lim[i].l2 - w.P2)); tau = x.retRate * retireFactor(x.n2 + 1) * TAX.LOCAL; }
           else if (tier === 'P2x') { avail = x.b2; tau = x.retRate * TAX.LOCAL; }
           else if (tier === 'P3a') { avail = Math.max(0, Math.min(x.b3, lim[i].l3 - w.P3in, capOf(i) - w.P3in)); tau = pub[i] > 0 || capOf(i) <= SEP ? pensionRate(a) * TAX.LOCAL : 0.03; }
@@ -295,7 +291,7 @@ function simulateOnce(p, order, capNoPub) {
     });
     P.forEach((x, i) => {
       const dt = growT(x, r, p.divPost, sold[i]); sum.taxDiv += dt; row.taxDiv = (row.taxDiv || 0) + dt;
-      if (x.lastFin > 20e6 * kx) sum.finWarnYears++;
+      if (x.lastFin > TR.FIN_INCOME.threshold * kx) sum.finWarnYears++;
     });
 
     const wsum = W.reduce((a, w) => a + w.T + w.F + w.P1 + w.P2 + w.P3 + w.P2x + w.P3x, 0);
