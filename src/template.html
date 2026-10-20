@@ -1466,6 +1466,13 @@ function renderInsight(p, res) {
 }
 
 /* ---- 최대 생활비 (계산이 무거워 잠깐 뒤에) ---- */
+// 최대 생활비가 0원(10만원 미만)일 때 원인: 표시 단위인 월 10만원만 써도 연금계좌를 꺼낼 수 없는 나이(55세 전)에 바닥나면 그 공백기 탓, 아니면 공적연금 부족
+function zeroCause(p) {
+  const s = 1e5;   // rules-ok: 최대 생활비 표시 단위(10만원)
+  const z = simulate({ ...p, spend: s, spend2: p.spend2 != null ? p.spend2 * s / Math.max(1, p.spend) : null });   // maxSpend와 같은 방식
+  if (z.deplAge != null && z.deplAge < TR.PENSION.minAge) return `연금계좌는 ${TR.PENSION.minAge}세부터 꺼낼 수 있는데, 그 전에 쓸 예금·ISA 등이 모자라 ${z.deplAge}세에 바닥나요`;
+  return '공적연금만으로는 건보료·세금도 감당이 어려워요';
+}
 let maxTimer = null;
 function scheduleMax(p) {
   clearTimeout(maxTimer);
@@ -1475,7 +1482,7 @@ function scheduleMax(p) {
     $('s-max').textContent = r > 0 ? `월 ${fmtMan(r)}` : '0원';
     $('s-max-sub').innerHTML = r > 0
       ? `오늘 돈 가치 · 10만원 단위로 내려 잡은 값 · 이만큼 쓰면 ${p.endAge}세까지 버텨요${p.spend > r ? ` (지금 계획보다 월 ${fmtMan(p.spend - r)} 적게)` : p.spend < r ? ` (지금보다 월 ${fmtMan(r - p.spend)} 더 써도 돼요)` : ''}`
-      : '공적연금만으로는 건보료·세금도 감당이 어려워요';
+      : zeroCause(p);
     if (last) last.max = r;
   }, 250);
 }
