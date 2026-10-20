@@ -823,7 +823,8 @@
           <li><b>퇴직금</b>은 일시금이면 퇴직소득세를 뗀 돈이 예금·일반계좌로, IRP 연금이면 세전 금액이 IRP로 들어가 꺼낼 때 퇴직소득세의 <span data-rule="RETIREMENT_INCOME_TAX.pensionPayRatio.0.1*100">70</span>%(<span data-rule="RETIREMENT_INCOME_TAX.pensionPayRatio.0.0+1">11</span>년차부터 <span data-rule="RETIREMENT_INCOME_TAX.pensionPayRatio.1.1*100">60</span>%, <span data-rule="RETIREMENT_INCOME_TAX.pensionPayRatio.1.0+1">21</span>년차부터 <span data-rule="RETIREMENT_INCOME_TAX.pensionPayRatio.2.1*100">50</span>%)를 내요.</li>
           <li><b>공적연금 소득세</b>는 연금소득공제·본인공제·<span data-rule="INCOME_TAX.elderAge">70</span>세 이상 경로우대·배우자공제·표준세액공제를 넣어 계산하고, 2002년 이전 납입분도 과세로 봐 실제보다 조금 많게 잡혀요.</li>
           <li><b>세법 기준금액</b>(연금소득공제 한도 <span data-rule="INCOME_TAX.pensionIncomeDeductionCap/1e4">900</span>만원, 과표구간, 인적공제, 사적연금 <span data-rule="PENSION.separateLimit/1e4">1,500</span>만원, 금융소득 <span data-rule="FIN_INCOME.threshold/1e4">2,000</span>만원)은 기본으로 <b>지금 금액 그대로</b> 둡니다. 실제 세법은 물가에 자동으로 맞춰 오르지 않기 때문이에요. 다만 몇 년에 한 번씩 올려 왔기 때문에 장기로는 세금이 많게 잡히는 편이라, 맨 위 <b>‘세법 기준 물가연동’</b>을 켜면 이 금액들이 물가만큼 오른다고 보고 다시 계산해요. 실제는 두 결과 사이일 가능성이 높아요.</li>
-          <li><b>건보료</b>(<span data-rule="meta.year" data-fmt="i">2026</span>년 기준)는 지역가입자로 보고 부부 한 세대로 매겨요: 공적연금 <span data-rule="NHIS.publicPensionRatio*100">50</span>% + 이자·배당(1인 연 <span data-rule="NHIS.finIncomeThreshold/1e4">1,000</span>만원 넘으면 전액)에 <span data-rule="NHIS.healthRate*100">7.19</span>%, 집 공시가격의 과세표준(1주택 <span data-rule="PROPERTY.fairMarketRatioSingleHome.0.1*100">43</span>~<span data-rule="PROPERTY.fairMarketRatioSingleHome.2.1*100">45</span>%, 2주택 이상 <span data-rule="PROPERTY.fairMarketRatioMultiHome*100">60</span>%)에서 <span data-rule="NHIS.propertyDeduction/1e8">1</span>억원을 뺀 재산 점수 × <span data-rule="NHIS.perPoint">211.5</span>원, 장기요양보험료 포함. 보험료는 오늘 기준으로 계산한 뒤 물가만큼 올려요. 다만 <b>판정 기준 금액</b>(이자·배당 <span data-rule="NHIS.finIncomeThreshold/1e4">1,000</span>만원, 피부양자 소득 <span data-rule="NHIS.dependent.income/1e4">2,000</span>만원·재산 <span data-rule="NHIS.dependent.propLow/1e8">5.4</span>억/<span data-rule="NHIS.dependent.propHigh/1e8">9</span>억원)은 법에 정한 금액이라 <b>물가에 연동되지 않아요</b>. 그래서 물가가 오르면 같은 생활 수준이어도 기준을 넘는 해가 생겨요.</li>
+          <li><b>건보료</b>(<span data-rule="meta.year" data-fmt="i">2026</span>년 기준)는 지역가입자로 보고 부부 한 세대로 매겨요: 공적연금 <span data-rule="NHIS.publicPensionRatio*100">50</span>% + 이자·배당(1인 연 <span data-rule="NHIS.finIncomeThreshold/1e4">1,000</span>만원 넘으면 전액)에 <span data-rule="NHIS.healthRate*100">7.19</span>%, 집 공시가격의 과세표준(1주택 <span data-rule="PROPERTY.fairMarketRatioSingleHome.0.1*100">43</span>~<span data-rule="PROPERTY.fairMarketRatioSingleHome.2.1*100">45</span>%, 2주택 이상 <span data-rule="PROPERTY.fairMarketRatioMultiHome*100">60</span>%)에서 <span data-rule="NHIS.propertyDeduction/1e8">1</span>억원을 뺀 재산 점수 × <span data-rule="NHIS.perPoint">211.5</span>원, 장기요양보험료 포함(고지서처럼 건강보험료·장기요양보험료 각각 월 <span data-rule="NHIS.truncUnit">10</span>원 미만 버림). 보험료는 오늘 기준으로 계산한 뒤 물가만큼 올려요. 다만 <b>판정 기준 금액</b>(이자·배당 <span data-rule="NHIS.finIncomeThreshold/1e4">1,000</span>만원, 피부양자 소득 <span data-rule="NHIS.dependent.income/1e4">2,000</span>만원·재산 <span data-rule="NHIS.dependent.propLow/1e8">5.4</span>억/<span data-rule="NHIS.dependent.propHigh/1e8">9</span>억원)은 법에 정한 금액이라 <b>물가에 연동되지 않아요</b>. 그래서 물가가 오르면 같은 생활 수준이어도 기준을 넘는 해가 생겨요.</li>
+          <li><b>국내 주식 직접 보유 배당</b> — 이 계산은 이자·배당을 종류별로 나누지 않아요. 국내 주식을 직접 보유해 받은 배당이 금융소득종합과세(1인 연 <span data-rule="FIN_INCOME.threshold/1e4">2,000</span>만원 초과)되면 배당가산액(그로스업 <span data-rule="FIN_INCOME.grossUp*100">10</span>%)만큼 건보료 소득이 늘 수 있어요(ETF 분배금은 해당 없음). 정확한 계산은 <a href="https://ttokjaetv.github.io/fin-income-tax/" target="_blank" rel="noopener">금융소득종합과세 계산기</a>에서 하세요.</li>
           <li><b>납입 한도</b>: 연금저축·IRP는 연 <span data-rule="PENSION_SAVINGS.contributionLimit/1e4">1,800</span>만원까지 넣고 그중 <span data-rule="PENSION_SAVINGS.creditLimitTotal/1e4">900</span>만원까지만 세액공제(넘는 돈은 <span class="bn n1">1</span>), ISA는 연 <span data-rule="ISA.annualLimit/1e4">2,000</span>만원까지 넣는다고 봐요.</li>
         </ul>
       </div>
@@ -915,14 +916,18 @@ function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) ret
 // 판정 기준 금액(이자·배당 1,000만원, 피부양자 2,000만원·5.4억·9억·1,000만원)은 법에 정한 명목 금액이라 물가에 연동하지 않는다
 // (국민건강보험법 시행규칙 제44조①, 별표 1의2). 오늘 돈 가치로 계산할 때는 k(= 물가 배수)로 기준을 나눠 비교 = 명목 금액을 고정 기준과 비교
 const nhFin = (f, k) => (f > NH.finMin / (k || 1) ? f : 0);
+// 고지서처럼 10원 미만 버림 (국민건강보험법 시행령 제44조) — fin-income-tax·etf-vs-direct의 floor10과 같은 식
+const floor10 = v => Math.floor(v / TR.NHIS.truncUnit + 1e-9) * TR.NHIS.truncUnit;
 function nhRegional(o) {
   const k = o.ix || 1;
   const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v), k), 0) + Math.max(0, o.other || 0);
   const m = income / 12;
-  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
-  const propPrem = propPoints(o.taxBase || 0) * NH.perPoint;
+  // 소득분·재산분 건강보험료를 각각 버리고, 장기요양보험료는 버림한 건강보험료 × 장기요양률/건보료율을 다시 버림 (fin-income-tax nhisCalc와 같은 순서)
+  const incPrem = floor10(m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi)));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
+  const propPrem = floor10(propPoints(o.taxBase || 0) * NH.perPoint);
   const health = incPrem + propPrem;
-  return { income, incPrem, propPrem, health, total: health * (1 + NH.ltc / NH.hi) };
+  const ltc = floor10(health * NH.ltc / NH.hi);
+  return { income, incPrem, propPrem, health, ltc, total: health + ltc };
 }
 function nhDependentOk(people, k) {   // 소득 요건은 부부 함께, 재산 요건은 각자. k: 물가 배수(오늘 돈 가치로 넣었을 때 기준을 나눔)
   k = k || 1;
@@ -1646,7 +1651,7 @@ function render() {
   const spendTxt = `월 ${fmtMan(p.spend)}${p.spend2 != null ? `(${p.spendAge}세부터 ${fmtMan(p.spend2)})` : ''}`;
   let v;
   if (res.depleteT == null) {
-    const left = endRow.total, leftR = left / ix(endRow.t);
+    const left = endRow.total, leftR = left / ix(endRow.t + 1);   // 연말 잔액 = 다음 해 연초 시점 → 그 시점 물가 지수로 나눔
     v = `<div class="v-k">결론 · ${spendTxt}씩 쓰면 (오늘 돈 가치)</div><div class="v-main ok">계획한 <b>${p.endAge}세</b>까지 버팁니다</div><div class="v-sub">${p.endAge}세 말에 금융자산 <b>${fmtMan(left)}</b>이 남아요 (오늘 돈 가치로 ${fmtMan(leftR)}).</div>`;
   } else {
     const t = res.depleteT, yr = p.year0 + t, rowD = res.rows[t];
@@ -1702,7 +1707,7 @@ function renderLevers(p, res) {
   if (res.npsStart[0] + 2 <= legal + MD) L.push(['국민연금 2년 늦게 받으면', `${res.npsStart[0] + 2}세부터 +${(2 * TR.NPS.deferralBonusPerYear * 100).toFixed(1)}%`, { ...p, persons: p.persons.map((x, i) => ({ ...x, npsAge: res.npsStart[i] + 2 <= res.npsLegal[i] + MD ? res.npsStart[i] + 2 : res.npsStart[i] })) }]);
   L.push(['은퇴 후 수익률 +1%p', `연 ${((p.rPost + 0.01) * 100).toFixed(1)}%`, { ...p, rPost: p.rPost + 0.01 }]);
   const base = res.depleteT == null ? null : res.deplAge;
-  const leftR = r => { const e = r.rows[r.rows.length - 1]; return e.total / Math.pow(1 + p.inf, e.t); };
+  const leftR = r => { const e = r.rows[r.rows.length - 1]; return e.total / Math.pow(1 + p.inf, e.t + 1); };   // 연말 잔액 → 다음 해 연초 지수
   $('lever-title').textContent = base == null ? `${p.endAge}세에 남는 돈을 늘리려면 (오늘 돈 가치)` : '바닥나는 나이를 늦추려면';
   $('levers').innerHTML = L.map(([t, s, pp]) => {
     const r = simulate(pp);

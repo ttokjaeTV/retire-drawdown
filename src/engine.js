@@ -54,14 +54,18 @@ function propPoints(tb) { const man = (tb - NH.propDed) / 1e4; if (man <= 0) ret
 // 판정 기준 금액(이자·배당 1,000만원, 피부양자 2,000만원·5.4억·9억·1,000만원)은 법에 정한 명목 금액이라 물가에 연동하지 않는다
 // (국민건강보험법 시행규칙 제44조①, 별표 1의2). 오늘 돈 가치로 계산할 때는 k(= 물가 배수)로 기준을 나눠 비교 = 명목 금액을 고정 기준과 비교
 const nhFin = (f, k) => (f > NH.finMin / (k || 1) ? f : 0);
+// 고지서처럼 10원 미만 버림 (국민건강보험법 시행령 제44조) — fin-income-tax·etf-vs-direct의 floor10과 같은 식
+const floor10 = v => Math.floor(v / TR.NHIS.truncUnit + 1e-9) * TR.NHIS.truncUnit;
 function nhRegional(o) {
   const k = o.ix || 1;
   const income = (o.pub || []).reduce((a, v) => a + Math.max(0, v) * NH.pubRate, 0) + (o.fin || []).reduce((a, v) => a + nhFin(Math.max(0, v), k), 0) + Math.max(0, o.other || 0);
   const m = income / 12;
-  const incPrem = m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
-  const propPrem = propPoints(o.taxBase || 0) * NH.perPoint;
+  // 소득분·재산분 건강보험료를 각각 버리고, 장기요양보험료는 버림한 건강보험료 × 장기요양률/건보료율을 다시 버림 (fin-income-tax nhisCalc와 같은 순서)
+  const incPrem = floor10(m <= NH.floorIncomeM ? NH.floorPrem : Math.min(NH.capPremM, Math.max(NH.floorPrem, m * NH.hi)));   // 하한 바로 위 소득도 하한보다 적게 내지 않게
+  const propPrem = floor10(propPoints(o.taxBase || 0) * NH.perPoint);
   const health = incPrem + propPrem;
-  return { income, incPrem, propPrem, health, total: health * (1 + NH.ltc / NH.hi) };
+  const ltc = floor10(health * NH.ltc / NH.hi);
+  return { income, incPrem, propPrem, health, ltc, total: health + ltc };
 }
 function nhDependentOk(people, k) {   // 소득 요건은 부부 함께, 재산 요건은 각자. k: 물가 배수(오늘 돈 가치로 넣었을 때 기준을 나눔)
   k = k || 1;
