@@ -22,6 +22,10 @@ cd src && node test.js        # ALL PASS 확인
 cd .. && python src/build.py  # index.html 다시 만들기
 ```
 
+제도 숫자는 허브의 `rules/v2026.2/rules.js`(전역 `TTOKJAE_RULES`), 세금·건보료 계산식(누진세·연금소득공제·종합과세·퇴직소득세·건보료·피부양자·국민연금 개시 나이·조기/연기)은
+허브의 공용 계산 엔진 `rules/calc-v1.js`(전역 `TTOKJAE_CALC`)에서 온다. `src/engine.js`의 `compTax`·`nhRegional` 등은 엔진을 부르는 얇은 껍데기(이름·인자·결과 그대로).
+`src/test.js`는 두 파일을 위쪽 폴더의 허브 clone(`ttokjaetv.github.io`)에서 읽고, 없으면 고정 주소에서 받는다.
+
 ## 같은 값을 쓰는 다른 계산기 (한쪽을 바꾸면 같이 바꾸기)
 
 | 항목 | 기준 파일 |
