@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://ttokjaetv.github.io/member-lock.js"></script>
+<script src="https://ttokjaetv.github.io/profile-v1.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>노후 자금 고갈 시뮬레이터 · 똑재TV</title>
 <meta name="description" content="국민연금·퇴직금·연금저축·IRP·ISA·예금을 넣으면 은퇴 후 해마다 세금과 건강보험료까지 계산해 노후 자금이 몇 살에 바닥나는지 알려 주는 무료 시뮬레이터. 2026년 세법·건보료 기준.">
@@ -574,6 +575,8 @@
     <button type="button" class="tool-btn" id="reset-btn">처음 값으로</button>
     <a href="#result" class="tool-btn ghost">결과 보기 ↓</a>
   </div>
+
+  <div id="tj-profile"></div>
 
   <!-- STEP 01 -->
   <div class="card">
@@ -1899,6 +1902,11 @@ $('csv-btn').addEventListener('click', () => {
   PF.render();
   render();
   PF.load(render);
+  /* 내 정보(다른 노후 계산기와 같이 쓰는 값) 채우기·저장 — 허브 profile-v1.js */
+  if (window.TJProfile) TJProfile.attach({ map: {
+    'age': 'age', 'retire-age': 'retireAge', 'end-age': 'endAge', 'inf': 'inflation', 'spend': 'spend', 'sp-age': 'spAge',
+    'me-sev': 'sev', 'me-sev-years': 'svcYears', 'me-tc': 'tc', 'me-ntc': 'noded', 'me-isa': 'isa', 'me-cash': 'gen',
+    'me-nps': 'nps', 'me-nps-age': 'npsAge', 'sp-nps': 'spNps' } });
 })();
 </script>
 </body>
