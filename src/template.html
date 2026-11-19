@@ -6,6 +6,7 @@
 <script src="https://ttokjaetv.github.io/profile-v1.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>노후 자금 고갈 시뮬레이터 · 똑재TV</title>
+<link rel="icon" href="/favicon.ico">
 <meta name="description" content="국민연금·퇴직금·연금저축·IRP·ISA·예금을 넣으면 은퇴 후 해마다 세금과 건강보험료까지 계산해 노후 자금이 몇 살에 바닥나는지 알려 주는 무료 시뮬레이터. 2026년 세법·건보료 기준.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -530,6 +531,8 @@
     .chart-container { height: 300px; }
   }
   @media (max-width: 420px) { .levers { grid-template-columns: 1fr; } .grid-4 { grid-template-columns: 1fr; } }
+  .scroll-hint { display: none; margin: 12px 0 -8px; text-align: center; font-size: 12px; font-weight: 700; color: var(--ink-mute); }
+  .scroll-hint.sh-on { display: block; }
 </style>
 </head>
 <body>
@@ -775,6 +778,7 @@
         <span class="fold-btn"><span class="open-txt">펼치기 ▾</span><span class="close-txt">접기 ▴</span></span>
       </summary>
       <div data-member="연도별 상세표">
+      <p class="scroll-hint sh-on" aria-hidden="true">← 옆으로 밀어 보세요 →</p>
       <div class="table-wrap">
         <table class="data-table yr-table" id="yr-table">
           <thead><tr><th>연도</th><th>나이</th><th>생활비</th><th>건보료</th><th>공적연금</th><th>예금·일반</th><th>ISA</th><th><span class="bn n1">1</span> 원금</th><th><span class="bn n2">2</span> 퇴직금</th><th><span class="bn n3">3</span> 공제분·수익</th><th>세금</th><th>모자람</th><th>연말 금융자산</th><th>비고</th></tr></thead>
