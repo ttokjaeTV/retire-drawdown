@@ -356,7 +356,7 @@
   @media (max-width: 768px) {
     body { padding: 16px 12px; }
     header { margin-bottom: 28px; }
-    .base-date { font-size: 11px; padding: 5px 10px; }
+    .base-date { font-size: 11px; padding: 5px 10px; white-space: nowrap; flex: none; }
     .card { padding: 20px 16px; margin-bottom: 20px; border-radius: 16px; }
     .hero { margin-bottom: 28px; }
     .hero-title { font-size: 32px; letter-spacing: -1.2px; line-height: 1.2; }
@@ -533,6 +533,7 @@
   @media (max-width: 420px) { .levers { grid-template-columns: 1fr; } .grid-4 { grid-template-columns: 1fr; } }
   .scroll-hint { display: none; margin: 12px 0 -8px; text-align: center; font-size: 12px; font-weight: 700; color: var(--ink-mute); }
   .scroll-hint.sh-on { display: block; }
+  @media print { .scroll-hint { display: none !important; } }
 </style>
 </head>
 <body>
